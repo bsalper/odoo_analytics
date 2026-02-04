@@ -25,29 +25,15 @@ jobs:
 
       - name: Create GCP credentials file
         run: |
-          # Usamos printf para evitar problemas con caracteres especiales y saltos de línea
-          printf "%s" "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" | base64 --decode > gcp-key.json
-          
-          # Paso de verificación: Si el archivo mide 0 bytes, el pipeline fallará aquí con un mensaje claro
-          if [ ! -s gcp-key.json ]; then
-            echo "ERROR: El archivo gcp-key.json está vacío. Revisa el Secret en GitHub."
-            exit 1
-          fi
+          # Esto convierte el código "ewog..." de nuevo en tu archivo .json original
+          echo "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" | base64 --decode > gcp-key.json
 
       - name: Run pipeline RAW
         env:
-          # --- Credenciales de Odoo ---
           ODOO_URL: ${{ secrets.ODOO_URL }}
           ODOO_DB: ${{ secrets.ODOO_DB }}
           ODOO_USER: ${{ secrets.ODOO_USER }}
-          # IMPORTANTE: El nombre aquí debe ser ODOO_API_KEY para que odoo.py lo encuentre
           ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
-          
-          # --- Credenciales de Google ---
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          
           PYTHONPATH: .
         run: |
-          # Ruta verificada según tu comentario anterior
           python pipelines/odoo_raw/sync_invoices_raw.py

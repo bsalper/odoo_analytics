@@ -1,6 +1,8 @@
 from google.cloud import bigquery
 from utils.logger import get_logger
 
+import os
+
 logger = get_logger("bigquery_loader")
 
 def load_dataframe(df, table_id, write_disposition="WRITE_TRUNCATE", schema=None):
@@ -12,7 +14,12 @@ def load_dataframe(df, table_id, write_disposition="WRITE_TRUNCATE", schema=None
         logger.warning(f"No hay datos para cargar en {table_id}")
         return
 
-    client = bigquery.Client()
+    key_path = "gcp-key.json"
+    if os.path.exists(key_path):
+        client = bigquery.Client.from_service_account_json(key_path)
+    else:
+        # Esto permite que siga funcionando localmente si usas ADC
+        client = bigquery.Client()
 
     # Configuramos la carga
     job_config = bigquery.LoadJobConfig(
