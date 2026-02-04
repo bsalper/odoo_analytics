@@ -1,9 +1,9 @@
-name: Sync facturas cabecera mes actual
+name: Sync Odoo Invoices RAW
 
 on:
   schedule:
-    - cron: "0 12 * * *" # 09:00 Chile (UTC-3)
-  workflow_dispatch:
+    - cron: "0 12 * * *" # 09:00 AM Chile (ajusta según necesites)
+  workflow_dispatch: # Esto permite que lo pruebes haciendo clic en un botón
 
 jobs:
   run-pipeline:
@@ -25,21 +25,22 @@ jobs:
 
       - name: Create GCP credentials file
         run: |
-          echo "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" > gcp-key.json
+          # Usamos comillas simples para proteger el contenido del JSON
+          echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > gcp-key.json
 
-      - name: Run pipeline facturas cabecera mes actual
+      - name: Run pipeline RAW
         env:
+          # Inyectamos los secrets para que get_odoo_client() los lea
           ODOO_URL: ${{ secrets.ODOO_URL }}
           ODOO_DB: ${{ secrets.ODOO_DB }}
           ODOO_USER: ${{ secrets.ODOO_USER }}
-          ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
-          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          BQ_DATASET_RAW: ${{ secrets.BQ_DATASET_RAW }}
-          BQ_DATASET_ANALYTICS: ${{ secrets.BQ_DATASET_ANALYTICS }}
+          ODOO_PASSWORD: ${{ secrets.ODOO_PASSWORD }} 
+          # Nota: Si usas API Key cámbialo a ODOO_API_KEY
+          
+          # Configuración de Google para BigQuery
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
+          
+          PYTHONPATH: .
         run: |
-          export PYTHONPATH=.
-          python pipelines/***/sync_invoice_lines_unified.py
-
-      - name: Set GCP credentials env
-        run: echo "GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json" >> $GITHUB_ENV
+          # Según tu imagen, el archivo está en pipelines/sync_invoices_raw.py
+          python pipelines/sync_invoices_raw.py
