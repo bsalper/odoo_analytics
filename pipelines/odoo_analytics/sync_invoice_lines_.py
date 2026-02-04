@@ -5,7 +5,6 @@ from loaders.bigquery_loader import load_dataframe
 from utils.logger import get_logger
 from google.cloud import bigquery
 from datetime import date
-import pandas as pd
 
 PROJECT_ID = "odoo-analytics-482120"
 DATASET_ANALYTICS = "odoo_analytics"

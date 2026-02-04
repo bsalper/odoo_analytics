@@ -1,0 +1,41 @@
+name: Sync facturas cabecera mes actual
+
+on:
+  schedule:
+    - cron: "0 12 * * *" # 09:00 Chile (UTC-3)
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create GCP credentials file
+        run: |
+          echo "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" > gcp-key.json
+
+      - name: Run pipeline facturas cabecera mes actual
+        env:
+          ODOO_URL: ${{ secrets.ODOO_URL }}
+          ODOO_DB: ${{ secrets.ODOO_DB }}
+          ODOO_USER: ${{ secrets.ODOO_USER }}
+          ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          BQ_DATASET_RAW: ${{ secrets.BQ_DATASET_RAW }}
+          BQ_DATASET_ANALYTICS: ${{ secrets.BQ_DATASET_ANALYTICS }}
+        run: |
+          python pipelines/sync_invoice_cabecera_mes_actual.py
