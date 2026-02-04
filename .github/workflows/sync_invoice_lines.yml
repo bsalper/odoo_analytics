@@ -1,4 +1,4 @@
-name: Sync Odoo Analytics Unified
+name: Sync Factura Detalle
 
 on:
   # Se dispara automáticamente cuando el pipeline de RAW termina
