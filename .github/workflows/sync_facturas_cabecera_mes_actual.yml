@@ -38,7 +38,8 @@ jobs:
           BQ_DATASET_RAW: ${{ secrets.BQ_DATASET_RAW }}
           BQ_DATASET_ANALYTICS: ${{ secrets.BQ_DATASET_ANALYTICS }}
         run: |
-          python pipelines/odoo_analytics/sync_invoice_lines_unified.py
+          export PYTHONPATH=.
+          python pipelines/***/sync_invoice_lines_unified.py
 
       - name: Set GCP credentials env
         run: echo "GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json" >> $GITHUB_ENV
