@@ -25,7 +25,14 @@ jobs:
 
       - name: Create GCP credentials file
         run: |
-          echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > gcp-key.json
+          # Usamos printf para evitar problemas con caracteres especiales y saltos de línea
+          printf "%s" "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" | base64 --decode > gcp-key.json
+          
+          # Paso de verificación: Si el archivo mide 0 bytes, el pipeline fallará aquí con un mensaje claro
+          if [ ! -s gcp-key.json ]; then
+            echo "ERROR: El archivo gcp-key.json está vacío. Revisa el Secret en GitHub."
+            exit 1
+          fi
 
       - name: Run pipeline RAW
         env:
