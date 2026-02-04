@@ -25,7 +25,7 @@ def run():
     # 3. Leer facturas válidas desde BigQuery para separar histórico y mes actual
     query = f"""
         SELECT id, SAFE_CAST(invoice_date AS DATE) AS fecha_factura
-        FROM `{PROJECT_ID}.{DATASET_ANALYTICS}.invoices_raw`
+        FROM {PROJECT_ID}.odoo_raw.invoices_raw
         WHERE state = 'posted'
     """
     facturas_df = client_bq.query(query).to_dataframe()

@@ -1,0 +1,45 @@
+name: Sync Odoo Analytics Unified
+
+on:
+  # Se dispara automáticamente cuando el pipeline de RAW termina
+  workflow_run:
+    workflows: ["Sync Odoo Invoices RAW"]
+    types:
+      - completed
+  workflow_dispatch: # Permite ejecución manual
+
+jobs:
+  run-analytics:
+    # Solo se ejecuta si el pipeline de RAW terminó exitosamente
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create GCP credentials file
+        run: |
+          echo "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" | base64 --decode > gcp-key.json
+
+      - name: Run Analytics Pipeline
+        env:
+          ODOO_URL: ${{ secrets.ODOO_URL }}
+          ODOO_DB: ${{ secrets.ODOO_DB }}
+          ODOO_USER: ${{ secrets.ODOO_USER }}
+          ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
+          # Importante para que bigquery_loader encuentre la llave
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
+          PYTHONPATH: .
+        run: |
+          python pipelines/odoo_analytics/sync_invoice_lines_unified.py
