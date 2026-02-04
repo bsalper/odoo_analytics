@@ -2,8 +2,8 @@ name: Sync Odoo Invoices RAW
 
 on:
   schedule:
-    - cron: "0 12 * * *" # 09:00 AM Chile (ajusta según necesites)
-  workflow_dispatch: # Esto permite que lo pruebes haciendo clic en un botón
+    - cron: "0 12 * * *" # 09:00 AM Chile
+  workflow_dispatch:
 
 jobs:
   run-pipeline:
@@ -25,22 +25,22 @@ jobs:
 
       - name: Create GCP credentials file
         run: |
-          # Usamos comillas simples para proteger el contenido del JSON
           echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > gcp-key.json
 
       - name: Run pipeline RAW
         env:
-          # Inyectamos los secrets para que get_odoo_client() los lea
+          # --- Credenciales de Odoo ---
           ODOO_URL: ${{ secrets.ODOO_URL }}
           ODOO_DB: ${{ secrets.ODOO_DB }}
           ODOO_USER: ${{ secrets.ODOO_USER }}
-          ODOO_PASSWORD: ${{ secrets.ODOO_PASSWORD }} 
-          # Nota: Si usas API Key cámbialo a ODOO_API_KEY
+          # IMPORTANTE: El nombre aquí debe ser ODOO_API_KEY para que odoo.py lo encuentre
+          ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
           
-          # Configuración de Google para BigQuery
+          # --- Credenciales de Google ---
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           
           PYTHONPATH: .
         run: |
-          # Según tu imagen, el archivo está en pipelines/sync_invoices_raw.py
-          python pipelines/sync_invoices_raw.py
+          # Ruta verificada según tu comentario anterior
+          python pipelines/odoo_raw/sync_invoices_raw.py
