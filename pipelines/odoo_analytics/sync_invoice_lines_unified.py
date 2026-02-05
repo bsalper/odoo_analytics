@@ -12,7 +12,7 @@ DATASET_ANALYTICS = "odoo_analytics"
 logger = get_logger("sync_invoice_detalle_unificado")
 
 def run():
-    logger.info("Iniciando pipeline: factura_detalle_unificado")
+    logger.info("Iniciando pipeline: factura detalle unificado")
 
     # 1. Conexiones
     odoo_client = get_odoo_client()
@@ -69,7 +69,7 @@ def run():
         )
         logger.info(f"Cargadas {len(df_current)} líneas en mes actual.")
 
-    logger.info("Pipeline factura_detalle_unificado finalizado OK 🚀")
+    logger.info("Pipeline finalizado OK 🚀")
 
 if __name__ == "__main__":
     run()

@@ -7,7 +7,6 @@ from loaders.bigquery_loader import load_dataframe
 from utils.logger import get_logger
 from google.cloud import bigquery
 
-# Configuración
 PROJECT_ID = "odoo-analytics-482120"
 DATASET_ANALYTICS = "odoo_analytics"
 
@@ -59,6 +58,6 @@ def run():
         logger.info(f"Cargadas {len(df_current)} facturas del mes actual.")
 
     logger.info("Pipeline finalizado OK 🚀")
-    
+
 if __name__ == "__main__":
     run()

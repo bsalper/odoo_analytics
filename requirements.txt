@@ -4,5 +4,6 @@ google-cloud-bigquery
 google-auth
 python-dotenv
 odoo-rpc-client
+google-cloud-bigquery-storage
 pyarrow
 pandas-gbq
