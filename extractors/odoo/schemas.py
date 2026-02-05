@@ -33,7 +33,7 @@ TAX_FIELDS = [
 INVOICE_FIELDS = [
     "id", "name", "state", "l10n_latam_document_number", "invoice_date_due",
     "l10n_latam_document_type_id", "invoice_date", "create_date", "partner_id_vat"
-    "partner_id", "invoice_user_id", "amount_untaxed", "amount_tax",
+    "partner_id", "invoice_user_id", "amount_untaxed", "amount_tax", "default_code",
     "amount_total", "amount_residual", "invoice_origin", "invoice_payment_term_id",
     "payment_state", "partner_shipping_id", "preferred_payment_method_line_id",
 ]
