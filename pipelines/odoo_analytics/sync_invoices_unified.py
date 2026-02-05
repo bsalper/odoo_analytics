@@ -46,7 +46,7 @@ def run():
                 write_disposition="WRITE_TRUNCATE" # El día 1 refrescamos todo el histórico
             )
     else:
-        logger.info(f"Hoy es día {today.day}: Se omite carga histórica para evitar duplicados.")
+        logger.info(f"Hoy es día {today.day}: Se omite histórico de detalle.")
 
     # 4. CARGA DE MES ACTUAL (Todos los días)
     if not df_current.empty:
