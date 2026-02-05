@@ -2,7 +2,7 @@ name: Sync Odoo Invoices RAW
 
 on:
   schedule:
-    - cron: "0 12 * * *" # 09:00 AM Chile
+    - cron: "30 10 * * *" # 07:30 AM Chile
   workflow_dispatch:
 
 jobs:
