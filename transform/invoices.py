@@ -69,9 +69,9 @@ def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=N
     # --- 6. Selección final ---
     columnas_finales = [
         "id_factura", "numero_factura", "folio_document", "tipo_documento",
-        "estado", "fecha_creacion", "fecha_factura", "monto_neto",
-        "monto_impuesto", "total_factura", "estado_pago", "origen",
-        "id_cliente", "id_vendedor"
+        "estado", "fecha_creacion", "fecha_factura", "fecha_vencimiento", 
+        "monto_neto", "monto_impuesto", "monto_residual", "total_factura",
+        "estado_pago", "origen", "id_cliente", "id_vendedor"
     ]
     
     df = df[[c for c in columnas_finales if c in df.columns]]
