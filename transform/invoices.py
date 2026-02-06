@@ -23,7 +23,6 @@ def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=N
     df = df.rename(columns={
         "id": "id_factura",
         "name": "numero_factura",
-        "default_code": "referencia",
         "l10n_latam_document_number": "folio_document",
         "l10n_latam_document_type_id": "tipo_documento",
         "state": "estado",
@@ -69,7 +68,6 @@ def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=N
         [
             "id_factura",
             "numero_factura",
-            "referencia",
             "folio_document",
             "tipo_documento",
             "estado",
