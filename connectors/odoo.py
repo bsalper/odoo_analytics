@@ -1,6 +1,9 @@
 # Aqui se hace la conexion a Odoo
 import xmlrpc.client
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class OdooClient:
     def __init__(self):
