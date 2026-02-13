@@ -38,12 +38,12 @@ def run():
     # 3. CARGA DE HISTÓRICO (Solo el día 1 del mes)
     # Esto evita que se duplique la data todos los días.
     if today.day == 1:
-        logger.info("Hoy es día 1: Sincronizando tabla histórica...")
+        logger.info("EJECUTANDO RESCATE MANUAL DEL HISTÓRICO...")
         if not df_historico.empty:
             load_dataframe(
                 df=df_historico,
                 table_id=f"{PROJECT_ID}.{DATASET_ANALYTICS}.facturas_cabecera_historico",
-                write_disposition="WRITE_TRUNCATE" # El día 1 refrescamos todo el histórico
+                write_disposition="WRITE_TRUNCATE" 
             )
     else:
         logger.info(f"Hoy es día {today.day}: Se omite histórico de detalle.")

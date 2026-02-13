@@ -32,12 +32,23 @@ def transform_clients(clients_raw, valid_vendedor_ids):
     # 2. Renombrar columnas
     df = df.rename(columns={
         "id": "id_cliente",
+        "company_type": "tipo_compania",
+        "type": "tipo_direccion",
         "name": "nombre_cliente",
         "vat": "rut",
+        "visit_day": "dia_visita",
+        "street": "calle",
+        "city": "ciudad",
         "email": "correo",
         "phone": "telefono",
-        "city": "ciudad",
-        "create_date": "fecha_creacion"
+        "create_date": "fecha_creacion",
+        "property_payment_term_id": "plazo_pago",
+        "credit_limit": "credito_limite",
+        "property_product_pricelist": "tarifa",
+        "partner_latitude": "geo_latitud",
+        "partner_longitude": "geo_longitud",
+        "category_id": "etiquetas",
+        "user_id": "id_vendedor"
     })
 
     # 3. Filtrar solo vendedores válidos

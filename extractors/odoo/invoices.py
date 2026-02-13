@@ -7,8 +7,8 @@ from .schemas import INVOICE_FIELDS, INVOICE_LINE_FIELDS
 def get_invoices_raw(client):
     # Esto traerá todo desde el 2025 hasta el infinito (incluyendo 2026)
     domain = [
-        ("move_type", "=", "out_invoice"),
-        ("invoice_date", ">=", "2025-01-01"),
+        ("move_type", "in", ["out_invoice", "out_refund"]),
+        ("invoice_date", ">=", "2024-01-01"),
         ("state", "=", "posted")
     ]
 
@@ -22,11 +22,11 @@ def get_invoices_raw(client):
 def get_invoice_lines_raw(client):
     # Para las líneas, asegúrate de que también incluya 2026
     # Si usas 'two_months_ago', hoy (Feb 2026) traerá desde Dic 2025. Está OK.
-    two_months_ago = (datetime.today() - relativedelta(months=2)).strftime("%Y-%m-%d")
+    fecha_rescate = "2024-01-01"
 
     domain = [
-        ("move_id.move_type", "=", "out_invoice"),
-        ("move_id.invoice_date", ">=", two_months_ago),
+        ("move_id.move_type", "in", ["out_invoice", "out_refund"]),
+        ("move_id.invoice_date", ">=", fecha_rescate),
         ("move_id.state", "=", "posted")
     ]
 
