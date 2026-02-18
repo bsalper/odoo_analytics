@@ -84,7 +84,21 @@ def transform_clients(clients_raw, valid_vendedor_ids=None):
     df = df[~((df["tipo_compania"] == "person") & (df["tipo_direccion"] == "contact"))]
 
     # --- 7. Eliminar duplicados por rut + calle + vendedor ---
-    df = df.drop_duplicates(subset=["rut", "calle", "id_vendedor"], keep="first")
+    # --- Normalizar calle para deduplicación ---
+    if "calle" in df.columns:
+        df["calle_normalizada"] = (
+            df["calle"]
+            .str.lower()
+            .str.strip()
+            .str.replace(r"\s+", " ", regex=True)
+        )
+
+    df = df.drop_duplicates(
+        subset=["rut", "calle_normalizada", "id_vendedor"],
+        keep="first"
+    )
+
+    df = df.drop(columns=["calle_normalizada"])
 
     # --- 8. Filtrar vendedores válidos ---
     if valid_vendedor_ids:
