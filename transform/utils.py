@@ -1,27 +1,22 @@
 import pandas as pd
-import re
 
-def normalize_many2one_field(series):
-    """
-    Extrae el NOMBRE (el segundo elemento) de un campo Many2one de Odoo.
-    Maneja tanto listas [ID, "Nombre"] como strings "[ID, 'Nombre']".
-    """
-    def extract_name(x):
+def normalize_many2one_id(series):
+    def extract_id(x):
         if not x or x in ["False", "None", "[]"]:
             return None
-        
+
+        if isinstance(x, (list, tuple)) and len(x) > 0:
+            return x[0]
+
         x_str = str(x)
         if "[" in x_str and "," in x_str:
-            # Buscamos lo que está después de la primera coma
-            # Ejemplo: "[15, 'Unidades']" -> " 'Unidades']"
-            parts = x_str.split(',', 1)
-            if len(parts) > 1:
-                name_part = parts[1]
-                # Limpiamos comillas, corchetes y espacios
-                return name_part.replace("'", "").replace('"', "").replace("]", "").strip()
-        return x_str
+            parts = x_str.strip("[]").split(",", 1)
+            return parts[0].strip()
 
-    return series.apply(extract_name) if series is not None else None
+        return None
+
+    return series.apply(extract_id) if series is not None else None
+
 
 def clean_and_serialize_dates(df, date_cols):
     for col in date_cols:

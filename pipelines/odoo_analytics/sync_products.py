@@ -1,72 +1,126 @@
-from loaders.bigquery_loader import load_dataframe
+from connectors.odoo import get_odoo_client
+from extractors.odoo.products import get_products_raw
 from transform.products import transform_products
+from loaders.bigquery_loader import load_dataframe
 from utils.logger import get_logger
 from google.cloud import bigquery
-import pandas as pd
+from dotenv import load_dotenv
 import os
-import pathlib
+
+load_dotenv(override=True)
 
 # Configuración
-PROJECT_ID = "odoo-analytics-482120"
-DATASET_RAW = "odoo_raw"
-DATASET_ANALYTICS = "odoo_analytics"
+PROJECT_ID = os.getenv("GCP_PROJECT_ID")
+DATASET_ANALYTICS = os.getenv("BQ_DATASET_ANALYTICS")
+
+TABLE_PRODUCTOS = "productos"
+TABLE_PRODUCTO_IMPUESTO = "producto_impuesto"
 
 logger = get_logger("sync_products_analytics")
 
+# -------------------------
+# SCHEMAS
+# -------------------------
+
+SCHEMA_PRODUCTOS = [
+    bigquery.SchemaField("id_producto", "INTEGER"),
+    bigquery.SchemaField("referencia_interna", "STRING"),
+    bigquery.SchemaField("nombre_producto", "STRING"),
+    bigquery.SchemaField("unidad_medida", "STRING"),
+    bigquery.SchemaField("precio_unitario", "FLOAT"),
+    bigquery.SchemaField("coste_unitario", "FLOAT"),
+    bigquery.SchemaField("fecha_creacion", "TIMESTAMP"),
+    bigquery.SchemaField("puede_ser_vendido", "BOOLEAN"),
+    bigquery.SchemaField("categoria", "STRING"),
+]
+
+SCHEMA_PRODUCTO_IMPUESTO = [
+    bigquery.SchemaField("id_producto", "INTEGER"),
+    bigquery.SchemaField("id_impuestos", "INTEGER"),
+]
+
+# -------------------------
+# Helpers
+# -------------------------
+
+def get_valid_tax_ids(client_bq):
+    logger.info("Leyendo impuestos permitidos desde BigQuery...")
+
+    query = f"""
+        SELECT id_impuestos
+        FROM `{PROJECT_ID}.{DATASET_ANALYTICS}.impuestos`
+    """
+
+    df = client_bq.query(query).to_dataframe()
+    return df["id_impuestos"].dropna().astype(int).tolist()
+
+# -------------------------
+# Pipeline principal
+# -------------------------
+
 def run():
-    logger.info("Iniciando pipeline ANALYTICS de productos")
+    logger.info("Iniciando pipeline ANALYTICS directo: Odoo -> BigQuery")
 
-    # Ruta relativa: entra a la carpeta y busca el archivo
-    # Esto funcionará en tu PC y en GitHub si mantienes la estructura
-    import pathlib
-    base_path = pathlib.Path(__file__).resolve().parent.parent.parent
-    ruta_json = base_path / "credentials_google" / "odoo-analytics-482120-4a4cd8457bc7.json"
+    try:
+        # 1. Conexiones
+        odoo_client = get_odoo_client()
+        client_bq = bigquery.Client(project=PROJECT_ID)
 
-    if ruta_json.exists():
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(ruta_json)
-        logger.info(f"Credenciales cargadas desde: {ruta_json}")
-    else:
-        logger.warning("No se encontró JSON local. Usando entorno global.")
+        # 2. Datos auxiliares
+        valid_tax_ids = get_valid_tax_ids(client_bq)
 
-    client_bq = bigquery.Client()
-    # ----------------------------------------
+        # 3. Extracción
+        products_raw = get_products_raw(odoo_client)
 
-    # 1. Obtener los IDs de impuestos desde BigQuery
-    logger.info("Leyendo impuestos desde BQ...")
-    query_impuestos = f"SELECT CAST(id_impuesto AS STRING) as id FROM `{PROJECT_ID}.{DATASET_ANALYTICS}.impuestos`"
-    df_impuestos = client_bq.query(query_impuestos).to_dataframe()
-    valid_tax_ids = df_impuestos['id'].tolist()
-    
-    logger.info(f"Impuestos cargados: {len(valid_tax_ids)}")
+        if not products_raw:
+            logger.warning("No se obtuvieron productos desde Odoo.")
+            return
 
-    # 2. Extraer de RAW
-    query_raw = f"SELECT * FROM `{PROJECT_ID}.{DATASET_RAW}.products_raw`"
-    df_raw = client_bq.query(query_raw).to_dataframe()
-    
-    if df_raw.empty:
-        logger.warning("No hay datos en RAW para procesar.")
-        return
+        logger.info(f"Productos extraídos: {len(products_raw)}")
 
-    # 3. Transformar
-    df_productos, df_impuestos_rel = transform_products(df_raw, valid_tax_ids)
-
-    # 4. Cargar Tabla Principal
-    load_dataframe(
-        df=df_productos,
-        table_id=f"{PROJECT_ID}.{DATASET_ANALYTICS}.productos",
-        write_disposition="WRITE_TRUNCATE",
-    )
-
-    # 5. Cargar Tabla de Relación
-    if not df_impuestos_rel.empty:
-        load_dataframe(
-            df=df_impuestos_rel,
-            table_id=f"{PROJECT_ID}.{DATASET_ANALYTICS}.productos_impuestos",
-            write_disposition="WRITE_TRUNCATE",
+        # 4. Transformación
+        df_productos, df_producto_impuesto = transform_products(
+            products_raw,
+            valid_tax_ids
         )
-        logger.info(f"Tabla de relación 'productos_impuestos' actualizada.")
 
-    logger.info("Pipeline finalizado con éxito.")
+        if df_productos.empty:
+            logger.warning("Después de la transformación no quedaron productos válidos.")
+            return
+
+        logger.info(f"Productos transformados: {len(df_productos)}")
+        logger.info(f"Relaciones producto-impuesto: {len(df_producto_impuesto)}")
+
+        # 5. Carga tabla productos
+        table_productos_id = f"{PROJECT_ID}.{DATASET_ANALYTICS}.{TABLE_PRODUCTOS}"
+
+        load_dataframe(
+            df=df_productos,
+            table_id=table_productos_id,
+            write_disposition="WRITE_TRUNCATE",
+            schema=SCHEMA_PRODUCTOS,
+        )
+
+        # 6. Carga tabla puente producto_impuesto
+        table_rel_id = f"{PROJECT_ID}.{DATASET_ANALYTICS}.{TABLE_PRODUCTO_IMPUESTO}"
+
+        load_dataframe(
+            df=df_producto_impuesto,
+            table_id=table_rel_id,
+            write_disposition="WRITE_TRUNCATE",
+            schema=SCHEMA_PRODUCTO_IMPUESTO,
+        )
+
+        logger.info(
+            f"Pipeline finalizado correctamente. "
+            f"{len(df_productos)} productos y "
+            f"{len(df_producto_impuesto)} relaciones cargadas."
+        )
+
+    except Exception as e:
+        logger.exception(f"Error en pipeline sync_products: {e}")
+        raise
+
 
 if __name__ == "__main__":
     run()

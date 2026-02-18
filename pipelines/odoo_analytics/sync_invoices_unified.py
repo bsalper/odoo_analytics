@@ -57,7 +57,7 @@ def run():
         )
         logger.info(f"Cargadas {len(df_current)} facturas del mes actual.")
 
-    logger.info("Pipeline finalizado OK 🚀")
+    logger.info("Pipeline finalizado OK")
 
 if __name__ == "__main__":
     run()

@@ -59,7 +59,7 @@ def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=N
         ["id_factura", "id_cliente", "id_vendedor"]
     )
 
-    # --- 5. Filtros opcionales ---
+    # --- 5. Filtros aqui solo se pregunta ¿Este ID está dentro de esta lista? ---
     if valid_vendedor_ids:
         df = df[df["id_vendedor"].isin(valid_vendedor_ids)]
 

@@ -1,21 +1,21 @@
 CLIENT_FIELDS = [
-    'id', 'name', 'company_type', 'type', 'vat', 'user_id',
+    'id', 'commercial_company_name', 'company_type', 'type', 'vat', 'user_id',
     'visit_day', 'street', 'city', 'email', 'phone',
     'create_date', 'property_payment_term_id', 'credit_limit',
     'property_product_pricelist', 'partner_latitude',
-    'partner_longitude', 'category_id'
+    'partner_longitude', 'category_id', 'active'
 ]
 
 ORDER_FIELDS = [
-    'id', 'name', 'create_date', 'partner_id', 'user_id',
-    'amount_untaxed', 'amount_tax', 'amount_total',
-    'main_exception_id', 'note', 'date_order', 'state',
-    'invoice_status', 'partner_shipping_id'
+    'id', 'name', 'create_date', 'date_order', 'amount_untaxed',
+    'amount_tax', 'amount_total', 'amount_total',
+    'main_exception_id', 'note_new', 'state', 'invoice_status',
+    'partner_shipping_id', 'partner_id', 'user_id'
 ]
 
 ORDER_LINE_FIELDS = [
-    'id', 'order_id', 'create_date', 'product_id',
-    'product_uom_qty', 'price_unit', 'price_subtotal'
+    'id', 'order_id', 'create_date', 'order_partner_id',
+    'product_id', 'product_uom_qty', 'price_unit', 'price_subtotal'
 ]
 
 PRODUCT_FIELDS = [

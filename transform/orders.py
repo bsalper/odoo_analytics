@@ -1,69 +1,95 @@
 import pandas as pd
 from utils.logger import get_logger
-from .utils import normalize_many2one_field, clean_and_serialize_dates, normalize_ids_to_string
+from .utils import clean_and_serialize_dates
 
 logger = get_logger("transform_orders")
 
-def transform_orders(orders_raw, valid_vendedor_ids, valid_client_ids):
+
+def transform_orders(orders_raw, valid_vendedor_ids=None, valid_client_ids=None):
     if not orders_raw:
         return pd.DataFrame()
 
     df = pd.DataFrame(orders_raw)
 
-    # --- 1. Normalización de campos ---
-    df["id_cliente"] = normalize_many2one_field(df.get("partner_id", pd.Series()))
-    df["id_vendedor"] = normalize_many2one_field(df.get("user_id", pd.Series()))
+    # --- 1. Normalización many2one (extraer ID entero) ---
+    def extract_many2one_id(value):
+        if not value or value in [False, "None", "False", "[]", ""]:
+            return None
+        if isinstance(value, (list, tuple)) and len(value) > 0:
+            return int(value[0])
+        x_str = str(value).strip()
+        if x_str.startswith("["):
+            try:
+                return int(x_str.replace("[", "").replace("]", "").split(",")[0])
+            except:
+                return None
+        try:
+            return int(float(x_str))
+        except:
+            return None
 
-    # --- 2. Renombrar columnas ---
+    df["id_cliente"] = df.get("partner_id", pd.Series()).apply(extract_many2one_id)
+    df["id_vendedor"] = df.get("user_id", pd.Series()).apply(extract_many2one_id)
+    df["id_direccion_entrega"] = df.get("partner_shipping_id", pd.Series()).apply(extract_many2one_id)
+
+    # --- 2. Renombrado de columnas ---
     df = df.rename(columns={
         "id": "id_pedido",
         "name": "referencia_pedido",
         "create_date": "fecha_creacion",
         "date_order": "fecha_pedido",
-        "amount_untaxed": "monto_neto",
-        "amount_tax": "monto_impuesto",
-        "amount_total": "total_pedido",
-        "state": "estado",
-        "invoice_status": "estado_factura",
-        "note": "nota"
+        "amount_untaxed": "base_imponible",
+        "amount_tax": "impuestos",
+        "amount_total": "total",
+        "main_exception_id": "excepcion",
+        "note_new": "comentarios",
+        "state": "estado_pedido",
+        "invoice_status": "estado_facturacion"
     })
 
-    # --- 3. CORRECCIÓN CRÍTICA PARA BIGQUERY ---
-    # Odoo envía False en lugar de "" o None en campos de texto vacíos.
-    # Esto convierte los False en None (NULL en BigQuery) y asegura que todo sea String.
-    if "nota" in df.columns:
-        df["nota"] = df["nota"].apply(lambda x: None if x is False else str(x) if x is not None else None)
+    # --- 3. Conversión de tipos ---
+    for col in ["id_pedido", "id_cliente", "id_vendedor", "id_direccion_entrega"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
 
-    # --- 4. Formateo de fechas e IDs ---
-    # Asegúrate de incluir 'fecha_creacion' si la vas a usar, ya que la renombraste
+    for col in ["base_imponible", "impuestos", "total"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
+
+    # --- 4. Limpieza de strings ---
+    str_cols = ["referencia_pedido", "excepcion", "comentarios", "estado_pedido", "estado_facturacion"]
+    for col in str_cols:
+        if col in df.columns:
+            df[col] = df[col].astype(str).replace(["None", "False", "nan"], "")
+
+    # --- 5. Fechas ---
     df = clean_and_serialize_dates(df, ["fecha_pedido", "fecha_creacion"])
-    df = normalize_ids_to_string(df, ["id_pedido", "id_cliente", "id_vendedor"])
 
-    # --- 5. Filtros condicionales ---
+    # --- 6. Filtros ---
     if valid_vendedor_ids:
         df = df[df["id_vendedor"].isin(valid_vendedor_ids)]
-
     if valid_client_ids:
         df = df[df["id_cliente"].isin(valid_client_ids)]
 
-    # --- 6. Selección de columnas finales ---
-    df = df[
-        [
-            "id_pedido",
-            "referencia_pedido",
-            "fecha_creacion",
-            "fecha_pedido",
-            "monto_neto",
-            "monto_impuesto",
-            "total_pedido",
-            "estado",
-            "estado_factura",
-            "nota",
-            "id_cliente",
-            "id_vendedor",
-        ]
+    # --- 7. Selección final ---
+    columnas_finales = [
+        "id_pedido",
+        "referencia_pedido",
+        "fecha_creacion",
+        "fecha_pedido",
+        "id_cliente",
+        "id_vendedor",
+        "base_imponible",
+        "impuestos",
+        "total",
+        "excepcion",
+        "comentarios",
+        "estado_pedido",
+        "estado_facturacion",
+        "id_direccion_entrega"
     ]
+    
+    df = df[[c for c in columnas_finales if c in df.columns]].reset_index(drop=True)
 
     logger.info(f"Pedidos transformados finales: {len(df)}")
-
     return df
