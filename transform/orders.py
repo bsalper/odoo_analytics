@@ -1,6 +1,6 @@
 import pandas as pd
 from utils.logger import get_logger
-from .utils import clean_and_serialize_dates
+from .utils import clean_and_serialize_dates, extract_many2one_id
 
 logger = get_logger("transform_orders")
 
@@ -12,25 +12,26 @@ def transform_orders(orders_raw, valid_vendedor_ids=None, valid_client_ids=None)
     df = pd.DataFrame(orders_raw)
 
     # --- 1. Normalización many2one (extraer ID entero) ---
-    def extract_many2one_id(value):
-        if not value or value in [False, "None", "False", "[]", ""]:
-            return None
-        if isinstance(value, (list, tuple)) and len(value) > 0:
-            return int(value[0])
-        x_str = str(value).strip()
-        if x_str.startswith("["):
-            try:
-                return int(x_str.replace("[", "").replace("]", "").split(",")[0])
-            except:
-                return None
-        try:
-            return int(float(x_str))
-        except:
-            return None
-
     df["id_cliente"] = df.get("partner_id", pd.Series()).apply(extract_many2one_id)
     df["id_vendedor"] = df.get("user_id", pd.Series()).apply(extract_many2one_id)
     df["id_direccion_entrega"] = df.get("partner_shipping_id", pd.Series()).apply(extract_many2one_id)
+    
+    # --- 2. Manejo Crítico de la Excepción ---
+    def safe_exception(x):
+        """Extrae el nombre de la excepción si es un many2one [id, name] o string"""
+        if isinstance(x, list) and len(x) > 1:
+            return str(x[1])
+        if isinstance(x, list) and len(x) == 1:
+            return str(x[0])
+        if x is False or x is None or str(x).lower() in ["false", "none", "nan"]:
+            return ""
+        return str(x)
+
+    # Creamos la columna 'excepcion' procesando el campo original de Odoo
+    if "main_exception_id" in df.columns:
+        df["excepcion"] = df["main_exception_id"].apply(safe_exception)
+    else:
+        df["excepcion"] = ""
 
     # --- 2. Renombrado de columnas ---
     df = df.rename(columns={
@@ -41,7 +42,6 @@ def transform_orders(orders_raw, valid_vendedor_ids=None, valid_client_ids=None)
         "amount_untaxed": "base_imponible",
         "amount_tax": "impuestos",
         "amount_total": "total",
-        "main_exception_id": "excepcion",
         "note_new": "comentarios",
         "state": "estado_pedido",
         "invoice_status": "estado_facturacion"
@@ -60,10 +60,13 @@ def transform_orders(orders_raw, valid_vendedor_ids=None, valid_client_ids=None)
     str_cols = ["referencia_pedido", "excepcion", "comentarios", "estado_pedido", "estado_facturacion"]
     for col in str_cols:
         if col in df.columns:
-            df[col] = df[col].astype(str).replace(["None", "False", "nan"], "")
+            df[col] = df[col].astype(str).replace(["None", "False", "nan", "<NA>"], "")
 
-    # --- 5. Fechas ---
-    df = clean_and_serialize_dates(df, ["fecha_pedido", "fecha_creacion"])
+    # --- 5. Fechas (Solo DATE) ---
+    date_cols = ["fecha_creacion", "fecha_pedido"]
+    for col in date_cols:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce").dt.date
 
     # --- 6. Filtros ---
     if valid_vendedor_ids:

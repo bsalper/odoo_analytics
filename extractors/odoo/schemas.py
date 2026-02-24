@@ -2,8 +2,8 @@ CLIENT_FIELDS = [
     'id', 'commercial_company_name', 'company_type', 'type', 'vat', 'user_id',
     'visit_day', 'street', 'city', 'email', 'phone',
     'create_date', 'property_payment_term_id', 'credit_limit',
-    'property_product_pricelist', 'partner_latitude',
-    'partner_longitude', 'category_id', 'active'
+    'property_product_pricelist', 'partner_latitude', 'city_id',
+    'partner_longitude', 'category_id', 'active', 'street2'
 ]
 
 ORDER_FIELDS = [
@@ -14,7 +14,7 @@ ORDER_FIELDS = [
 ]
 
 ORDER_LINE_FIELDS = [
-    'id', 'order_id', 'create_date', 'order_partner_id',
+    'id', 'order_id', 'create_date', 'order_partner_id', 'discount',
     'product_id', 'product_uom_qty', 'price_unit', 'price_subtotal'
 ]
 
@@ -32,7 +32,7 @@ TAX_FIELDS = [
 
 INVOICE_FIELDS = [
     "id", "name", "state", "l10n_latam_document_number", "invoice_date_due",
-    "l10n_latam_document_type_id", "invoice_date", "create_date",
+    "l10n_latam_document_type_id", "invoice_date",
     "partner_id", "invoice_user_id", "amount_untaxed", "amount_tax",
     "amount_total", "amount_residual", "invoice_origin", "invoice_payment_term_id",
     "payment_state", "partner_shipping_id", "preferred_payment_method_line_id"
@@ -40,6 +40,6 @@ INVOICE_FIELDS = [
 
 INVOICE_LINE_FIELDS = [
     "id", "move_id", "product_id", "quantity", "discount",
-    "product_uom_id", "price_unit", "price_subtotal", "price_total", 
-    "tax_ids", "account_id", "name"
+    "product_uom_id", "price_unit", "price_subtotal",
+    "tax_ids", "account_id", "name", "date"
 ]

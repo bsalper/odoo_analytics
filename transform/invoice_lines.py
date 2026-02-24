@@ -1,70 +1,61 @@
 import pandas as pd
 from utils.logger import get_logger
 from .utils import (
-    normalize_many2one_field,
-    clean_and_serialize_dates,
-    normalize_ids_to_string
+    extract_many2one_id,
+    clean_and_serialize_dates
 )
 
 logger = get_logger("transform_invoice_lines")
 
-def transform_invoice_lines(invoice_lines_raw, valid_invoice_ids=None, valid_product_ids=None):
+def transform_invoice_lines(invoice_lines_raw, valid_invoice_ids=None):
     if not invoice_lines_raw:
         return pd.DataFrame()
 
-    df = pd.DataFrame(invoice_lines_raw)
+    df = pd.DataFrame(invoice_lines_raw).copy()
+    logger.info(f"DEBUG 1: Filas recibidas de Odoo: {len(df)}")
 
-    # --- 1. Normalización many2one ---
-    df["id_factura"] = normalize_many2one_field(df.get("move_id", pd.Series()))
-    df["id_producto"] = normalize_many2one_field(df.get("product_id", pd.Series()))
-
-    # --- 2. Renombrar columnas ---
+    # 1. Renombrar (Usamos fecha_filtro como puente temporal)
     df = df.rename(columns={
         "id": "id_linea_factura",
-        "name": "descripcion",
         "quantity": "cantidad",
         "price_unit": "precio_unitario",
         "price_subtotal": "subtotal",
-        "price_total": "total",
-        "create_date": "fecha_creacion",
+        "date": "fecha_filtro" 
     })
 
-    # --- 3. Corrección crítica (False → NULL) ---
-    if "descripcion" in df.columns:
-        df["descripcion"] = df["descripcion"].apply(
-            lambda x: None if x is False else str(x) if x is not None else None
-        )
+    # 2. Manejo de 'total'
+    if "price_total" in df.columns:
+        df = df.rename(columns={"price_total": "total"})
+    else:
+        df["total"] = df["subtotal"]
 
-    # --- 4. Fechas e IDs ---
-    df = clean_and_serialize_dates(df, ["fecha_creacion"])
-    df = normalize_ids_to_string(
-        df,
-        ["id_linea_factura", "id_factura", "id_producto"]
-    )
+    # 3. Extraer IDs
+    df["id_factura"] = df["move_id"].apply(extract_many2one_id)
+    df["id_producto"] = df["product_id"].apply(extract_many2one_id)
 
-    # --- 5. Filtros opcionales ---
-    if valid_invoice_ids:
-        df = df[df["id_factura"].isin(valid_invoice_ids)]
+    # 4. Normalizar numéricos
+    cols_numericas = ["cantidad", "precio_unitario", "subtotal", "total"]
+    for col in cols_numericas:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
 
-    if valid_product_ids:
-        df = df[df["id_producto"].isin(valid_product_ids)]
+    # 5. Tipado de IDs
+    df["id_factura"] = pd.to_numeric(df["id_factura"], errors="coerce").astype("Int64")
+    df["id_producto"] = pd.to_numeric(df["id_producto"], errors="coerce").astype("Int64")
+    df["id_linea_factura"] = pd.to_numeric(df["id_linea_factura"], errors="coerce").astype("Int64")
 
-    # --- 6. Selección final ---
+    # 6. Limpieza
+    df = df.dropna(subset=["id_producto", "id_factura"])
+    df = df[df["total"] != 0]
+
+    # 7. Preparar la fecha para el filtro del pipeline
+    df["fecha_filtro"] = pd.to_datetime(df["fecha_filtro"], errors="coerce")
+
+    # 8. Selección final (SIN fecha_creacion, pero CON fecha_filtro para el pipeline)
     final_cols = [
-        "id_linea_factura",
-        "id_factura",
-        "id_producto",
-        "descripcion",
-        "cantidad",
-        "precio_unitario",
-        "subtotal",
-        "total",
-        "fecha_creacion",
+        "id_linea_factura", "id_factura", "id_producto",
+        "cantidad", "precio_unitario", "subtotal", "total", "fecha_filtro"
     ]
+    df = df.reindex(columns=final_cols)
 
-    df = df[[c for c in final_cols if c in df.columns]]
-
-
-    logger.info(f"Líneas de factura transformadas finales: {len(df)}")
-
+    logger.info(f"Líneas procesadas: {len(df)}")
     return df

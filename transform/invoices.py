@@ -1,40 +1,40 @@
 import pandas as pd
+import re  # Importamos para la limpieza de texto
 from utils.logger import get_logger
 from .utils import (
-    normalize_many2one_id,
+    extract_many2one_id,
     clean_and_serialize_dates
 )
 
 logger = get_logger("transform_invoices")
-
 
 def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=None):
     if not invoices_raw:
         return pd.DataFrame()
 
     df = pd.DataFrame(invoices_raw).copy()
+    
+    # Función para extraer el nombre
+    def get_m2o_name(value):
+        if isinstance(value, (list, tuple)) and len(value) > 1:
+            return str(value[1])
+        return None
 
-    logger.info(f"Transformando {len(df)} facturas...")
-
-    def normalize_many2one_name(series):
-        return series.apply(
-            lambda x: x[1] if isinstance(x, (list, tuple)) and len(x) > 1 else None
-        )
-
-    # --- 1. Normalización Many2one ---
-    df["id_cliente"] = normalize_many2one_id(df.get("partner_id"))
-    df["id_vendedor"] = normalize_many2one_id(df.get("invoice_user_id"))
-    df["tipo_documento_raw"] = normalize_many2one_name(df.get("l10n_latam_document_type_id"))
+    # --- 1. Extracción de IDs y Nombres ---
+    df["id_cliente"] = df["partner_id"].apply(extract_many2one_id)
+    df["id_vendedor"] = df["invoice_user_id"].apply(extract_many2one_id)
+    df["tipo_documento_str"] = df["l10n_latam_document_type_id"].apply(get_m2o_name)
+    df["condicion_pago_str"] = df["invoice_payment_term_id"].apply(get_m2o_name)
 
     # --- 2. Renombrado ---
     df = df.rename(columns={
         "id": "id_factura",
         "name": "numero_factura",
+        "condicion_pago_str": "condicion_pago",
         "l10n_latam_document_number": "folio_document",
-        "tipo_documento_raw": "tipo_documento",
+        "tipo_documento_str": "tipo_documento",
         "state": "estado",
         "invoice_date": "fecha_factura",
-        "create_date": "fecha_creacion",
         "amount_untaxed": "monto_neto",
         "amount_tax": "monto_impuesto",
         "amount_residual": "monto_residual",
@@ -44,56 +44,53 @@ def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=N
         "invoice_origin": "origen",
     })
 
-    # --- 3. Limpieza de texto ---
-    text_fields = ["numero_factura", "estado", "estado_pago", "origen", "tipo_documento"]
+    # --- 3. LIMPIEZA DE TIPO_DOCUMENTO (Quitar "(#) ") ---
+    if "tipo_documento" in df.columns:
+        # Usamos regex para quitar cualquier cosa entre paréntesis al inicio y el espacio siguiente
+        # Ejemplo: "(39) Electronic Receipt" -> "Electronic Receipt"
+        df["tipo_documento"] = df["tipo_documento"].apply(
+            lambda x: re.sub(r'^\(\d+\)\s*', '', str(x)) if x and x is not False else ""
+        )
 
+    # --- 4. Limpieza de Texto General ---
+    text_fields = ["numero_factura", "estado", "estado_pago", "origen", "tipo_documento", "folio_document", "condicion_pago"]
     for field in text_fields:
         if field in df.columns:
-            df[field] = df[field].replace({False: None}).astype("string")
+            df[field] = df[field].apply(lambda x: "" if x is False or x is None else str(x)).str.strip()
 
-    # --- 4. Conversión numérica ---
-    numeric_fields = [
-        "monto_neto", "monto_impuesto",
-        "monto_residual", "total_factura"
-    ]
-
+    # --- 5. Conversión Numérica ---
+    numeric_fields = ["monto_neto", "monto_impuesto", "monto_residual", "total_factura"]
     for field in numeric_fields:
         if field in df.columns:
             df[field] = pd.to_numeric(df[field], errors="coerce").fillna(0.0)
 
-    # --- 5. Fechas ---
-    date_fields = ["fecha_factura", "fecha_creacion", "fecha_vencimiento"]
-    df = clean_and_serialize_dates(df, [f for f in date_fields if f in df.columns])
-
-    # --- 6. Normalizar IDs ---
+    # --- 6. Tipado de IDs ---
     id_fields = ["id_factura", "id_cliente", "id_vendedor"]
-
     for field in id_fields:
         if field in df.columns:
             df[field] = pd.to_numeric(df[field], errors="coerce").astype("Int64")
 
+    # --- 7. Fechas (Solo DATE) ---
+    date_cols = ["fecha_factura", "fecha_vencimiento"]
+    for col in date_cols:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce").dt.date
 
-    # --- 7. Filtros por vendedor / cliente ---
-    if valid_vendedor_ids:
-        df = df[df["id_vendedor"].isin(valid_vendedor_ids)]
+    # --- 8. Limpieza de Datos Final ---
+    df = df.dropna(subset=["id_factura", "id_cliente", "fecha_factura"])
+    if "estado" in df.columns:
+        df = df[df["estado"] == "posted"]
+    
+    df = df.drop_duplicates(subset=["id_factura"])
 
-    if valid_client_ids:
-        df = df[df["id_cliente"].isin(valid_client_ids)]
-
-    # --- 8. Eliminar duplicados por id_factura ---
-    if "id_factura" in df.columns:
-        df = df.drop_duplicates(subset=["id_factura"])
-
-    # --- 9. Selección final ---
+    # --- 9. Selección Final ---
     columnas_finales = [
         "id_factura", "numero_factura", "folio_document", "tipo_documento",
-        "estado", "fecha_creacion", "fecha_factura", "fecha_vencimiento",
+        "condicion_pago", "estado", "fecha_factura", "fecha_vencimiento",
         "monto_neto", "monto_impuesto", "monto_residual", "total_factura",
         "estado_pago", "origen", "id_cliente", "id_vendedor"
     ]
-
-    df = df[[c for c in columnas_finales if c in df.columns]].reset_index(drop=True)
-
-    logger.info(f"Facturas transformadas finales: {len(df)}")
+    
+    df = df.reindex(columns=columnas_finales)
 
     return df

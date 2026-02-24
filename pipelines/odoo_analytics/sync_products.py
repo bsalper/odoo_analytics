@@ -29,7 +29,7 @@ SCHEMA_PRODUCTOS = [
     bigquery.SchemaField("unidad_medida", "STRING"),
     bigquery.SchemaField("precio_unitario", "FLOAT"),
     bigquery.SchemaField("coste_unitario", "FLOAT"),
-    bigquery.SchemaField("fecha_creacion", "TIMESTAMP"),
+    bigquery.SchemaField("fecha_creacion", "DATE"),
     bigquery.SchemaField("puede_ser_vendido", "BOOLEAN"),
     bigquery.SchemaField("categoria", "STRING"),
 ]

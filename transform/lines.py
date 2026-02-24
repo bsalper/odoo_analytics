@@ -1,6 +1,6 @@
 import pandas as pd
 from utils.logger import get_logger
-from .utils import normalize_many2one_id, clean_and_serialize_dates
+from .utils import extract_many2one_id
 
 logger = get_logger("transform_pedido_detalle")
 
@@ -12,22 +12,32 @@ def transform_pedido_detalle(lines_raw, valid_product_ids=None, valid_order_ids=
     df = pd.DataFrame(lines_raw)
 
     # --- 1. Normalización many2one ---
-    df["id_pedido"] = normalize_many2one_id(df.get("order_id", pd.Series()))
-    df["id_producto"] = normalize_many2one_id(df.get("product_id", pd.Series()))
-    df["id_cliente"] = normalize_many2one_id(df.get("order_partner_id", pd.Series()))
+    if "order_id" in df.columns:
+        df["id_pedido"] = df["order_id"].apply(extract_many2one_id)
+    else:
+        df["id_pedido"] = None
 
+    if "product_id" in df.columns:
+        df["id_producto"] = df["product_id"].apply(extract_many2one_id)
+    else:
+        df["id_producto"] = None
+
+    if "order_partner_id" in df.columns:
+        df["id_cliente"] = df["order_partner_id"].apply(extract_many2one_id)
+    else:
+        df["id_cliente"] = None
 
     # --- 2. Renombrar columnas ---
     df = df.rename(columns={
         "id": "id_linea",
-        "create_date": "fecha_creacion",
+        "discount": "descuento",
         "product_uom_qty": "cantidad",
         "price_unit": "precio_unitario",
         "price_subtotal": "subtotal"
     })
 
     # --- 3. Asegurar tipos numéricos ---
-    cols_numericas = ["cantidad", "precio_unitario", "subtotal"]
+    cols_numericas = ["cantidad", "precio_unitario", "subtotal", "descuento"]
     for col in cols_numericas:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
@@ -38,26 +48,23 @@ def transform_pedido_detalle(lines_raw, valid_product_ids=None, valid_order_ids=
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
 
-    # --- 5. Formatear fechas ---
-    df = clean_and_serialize_dates(df, ["fecha_creacion"])
-
-    # --- 6. Filtros opcionales ---
+    # --- 5. Filtros opcionales ---
     if valid_product_ids:
         df = df[df["id_producto"].isin(valid_product_ids)]
 
     if valid_order_ids:
         df = df[df["id_pedido"].isin(valid_order_ids)]
 
-    # --- 7. Selección final ---
+    # --- 6. Selección final ---
     df = df[
         [
             "id_linea",
             "id_pedido",
-            "fecha_creacion",
             "id_cliente",
             "id_producto",
             "cantidad",
             "precio_unitario",
+            "descuento",
             "subtotal"
         ]
     ]
