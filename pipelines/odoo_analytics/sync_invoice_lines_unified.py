@@ -12,7 +12,7 @@ DATASET_ANALYTICS = "odoo_analytics"
 logger = get_logger("sync_invoice_detalle_unificado")
 
 def run():
-    logger.info("Iniciando pipeline unificado: factura detalle (Solo Odoo)")
+    logger.info("Iniciando pipeline unificado: factura detalle")
 
     # 1. Conexión a Odoo
     odoo_client = get_odoo_client()
@@ -44,7 +44,7 @@ def run():
     df_current = df_lines[df_lines["fecha_filtro"].dt.date >= month_start].copy()
 
     # 6. IMPORTANTE: Borrar la columna temporal antes de cargar a BigQuery
-    # Así BigQuery no recibe la columna y no te da error de esquema
+    # Así BigQuery no recibe la columna y no da error de esquema
     if not df_historical.empty:
         df_historical = df_historical.drop(columns=["fecha_filtro"])
     if not df_current.empty:
