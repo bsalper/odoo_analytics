@@ -23,6 +23,7 @@ def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=N
     # --- 1. Extracción de IDs y Nombres ---
     df["id_cliente"] = df["partner_id"].apply(extract_many2one_id)
     df["id_vendedor"] = df["invoice_user_id"].apply(extract_many2one_id)
+    df["id_direccion_entrega"] = df["partner_shipping_id"].apply(extract_many2one_id)
     df["tipo_documento_str"] = df["l10n_latam_document_type_id"].apply(get_m2o_name)
     df["condicion_pago_str"] = df["invoice_payment_term_id"].apply(get_m2o_name)
 
@@ -37,7 +38,6 @@ def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=N
         "invoice_date": "fecha_factura",
         "amount_untaxed": "monto_neto",
         "amount_tax": "monto_impuesto",
-        "amount_residual": "monto_residual",
         "invoice_date_due": "fecha_vencimiento",
         "amount_total": "total_factura",
         "payment_state": "estado_pago",
@@ -59,13 +59,13 @@ def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=N
             df[field] = df[field].apply(lambda x: "" if x is False or x is None else str(x)).str.strip()
 
     # --- 5. Conversión Numérica ---
-    numeric_fields = ["monto_neto", "monto_impuesto", "monto_residual", "total_factura"]
+    numeric_fields = ["monto_neto", "monto_impuesto", "total_factura"]
     for field in numeric_fields:
         if field in df.columns:
             df[field] = pd.to_numeric(df[field], errors="coerce").fillna(0.0)
 
     # --- 6. Tipado de IDs ---
-    id_fields = ["id_factura", "id_cliente", "id_vendedor"]
+    id_fields = ["id_factura", "id_cliente", "id_vendedor", "id_direccion_entrega"]
     for field in id_fields:
         if field in df.columns:
             df[field] = pd.to_numeric(df[field], errors="coerce").astype("Int64")
@@ -87,8 +87,8 @@ def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=N
     columnas_finales = [
         "id_factura", "numero_factura", "folio_document", "tipo_documento",
         "condicion_pago", "estado", "fecha_factura", "fecha_vencimiento",
-        "monto_neto", "monto_impuesto", "monto_residual", "total_factura",
-        "estado_pago", "origen", "id_cliente", "id_vendedor"
+        "monto_neto", "monto_impuesto", "total_factura",
+        "estado_pago", "origen", "id_cliente", "id_vendedor", "id_direccion_entrega"
     ]
     
     df = df.reindex(columns=columnas_finales)
