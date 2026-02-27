@@ -20,7 +20,9 @@ def transform_invoice_lines(invoice_lines_raw, valid_invoice_ids=None):
         "quantity": "cantidad",
         "price_unit": "precio_unitario",
         "price_subtotal": "subtotal",
-        "date": "fecha_filtro" 
+        "date": "fecha_filtro",
+        "discount": "descuento",
+        "cost_price": "costo_unitario"
     })
 
     # 2. Manejo de 'total'
@@ -34,7 +36,7 @@ def transform_invoice_lines(invoice_lines_raw, valid_invoice_ids=None):
     df["id_producto"] = df["product_id"].apply(extract_many2one_id)
 
     # 4. Normalizar numéricos
-    cols_numericas = ["cantidad", "precio_unitario", "subtotal", "total"]
+    cols_numericas = ["cantidad", "precio_unitario", "costo_unitario", "subtotal", "total", "descuento"]
     for col in cols_numericas:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
 
@@ -52,8 +54,8 @@ def transform_invoice_lines(invoice_lines_raw, valid_invoice_ids=None):
 
     # 8. Selección final (SIN fecha_creacion, pero CON fecha_filtro para el pipeline)
     final_cols = [
-        "id_linea_factura", "id_factura", "id_producto",
-        "cantidad", "precio_unitario", "subtotal", "total", "fecha_filtro"
+        "id_linea_factura", "id_factura", "id_producto", "cantidad", "costo_unitario",
+        "precio_unitario", "subtotal", "descuento", "total", "fecha_filtro"
     ]
     df = df.reindex(columns=final_cols)
 

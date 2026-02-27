@@ -1,5 +1,5 @@
 import pandas as pd
-from datetime import date
+from datetime import date, timedelta
 from connectors.odoo import get_odoo_client
 from extractors.odoo.orders import get_orders_raw
 from transform.orders import transform_orders
@@ -12,44 +12,57 @@ DATASET_ANALYTICS = "odoo_analytics"
 logger = get_logger("sync_orders_cabecera")
 
 def run():
-    logger.info("Iniciando pipeline: Pedido Cabecera (Solo Mes Actual)")
+    logger.info("Iniciando pipeline: Pedido Cabecera (Filtro Estricto)")
 
-    # 1. Conexión y Referencia Temporal
     odoo_client = get_odoo_client()
+    
     today = date.today()
-    month_start = today.replace(day=1)
+    month_actual_start = today.replace(day=1)
+    month_anterior_start = (month_actual_start - timedelta(days=1)).replace(day=1)
 
-    # 2. Extracción y Transformación
     orders_raw = get_orders_raw(odoo_client)
-    df = transform_orders(orders_raw)
+    df = transform_orders(orders_raw) # Aquí ya se renombraron las columnas
     
     if df.empty:
-        logger.warning("No se obtuvieron datos de Odoo. Finalizando.")
+        logger.warning("No hay datos.")
         return
 
-    # 3. Filtrado: Solo Mes Actual
-    # Convertimos a datetime para comparar contra el inicio del mes
-    df["fecha_tmp"] = pd.to_datetime(df["fecha_pedido"], errors="coerce").dt.date
+    # --- FILTRO ULTRA ESTRICTO ---
     
-    # Filtramos para quedarnos SOLO con lo que sea >= al primer día del mes
-    df_current = df[df["fecha_tmp"] >= month_start].copy()
+    # 1. Usamos fecha_creacion para el filtro, ya que es la que miras en BigQuery
+    # Nos aseguramos de que sean objetos date para comparar correctamente
+    df["fecha_filtro_dt"] = pd.to_datetime(df["fecha_creacion"]).dt.date
     
-    # Quitamos la columna temporal antes de cargar
-    df_current.drop(columns=["fecha_tmp"], inplace=True)
+    # 2. Regla para el Mes Actual (Todo febrero)
+    mask_actual = (df["fecha_filtro_dt"] >= month_actual_start)
 
-    # 4. Carga a BigQuery
-    if not df_current.empty:
-        logger.info(f"Cargando {len(df_current)} pedidos del mes actual a BigQuery.")
+    # 3. Regla para el Mes Anterior (Todo enero)
+    # Filtramos por rango Y por estado de facturación
+    mask_enero_rango = (df["fecha_filtro_dt"] >= month_anterior_start) & (df["fecha_filtro_dt"] < month_actual_start)
+    
+    # IMPORTANTE: transform_orders ya limpió los strings, así que comparamos directo
+    mask_no_facturado = (df["estado_facturacion"] != "invoiced")
+    
+    mask_anterior_final = mask_enero_rango & mask_no_facturado
+
+    # 4. Unión de datos
+    df_final = df[mask_actual | mask_anterior_final].copy()
+    
+    # LOG de control para que veas qué está pasando antes de subir
+    conteo_enero_invoiced = len(df[mask_enero_rango & (df["estado_facturacion"] == "invoiced")])
+    logger.info(f"Se descartaron {conteo_enero_invoiced} pedidos facturados de enero.")
+    logger.info(f"Registros finales a cargar: {len(df_final)}")
+
+    # Limpiar columna temporal
+    df_final.drop(columns=["fecha_filtro_dt"], inplace=True)
+
+    # 5. Carga
+    if not df_final.empty:
         load_dataframe(
-            df=df_current,
-            table_id=f"{PROJECT_ID}.{DATASET_ANALYTICS}.pedidos_cabecera_mes_actual",
+            df=df_final,
+            table_id=f"{PROJECT_ID}.{DATASET_ANALYTICS}.pedidos_cabecera",
             write_disposition="WRITE_TRUNCATE"
         )
-        logger.info("Carga exitosa en tabla mes actual.")
-    else:
-        logger.info("No se encontraron pedidos pertenecientes al mes actual.")
-
-    logger.info("Pipeline Pedido Cabecera finalizado OK")
 
 if __name__ == "__main__":
     run()

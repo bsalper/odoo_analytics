@@ -41,5 +41,5 @@ INVOICE_FIELDS = [
 INVOICE_LINE_FIELDS = [
     "id", "move_id", "product_id", "quantity", "discount",
     "product_uom_id", "price_unit", "price_subtotal",
-    "tax_ids", "account_id", "name", "date"
+    "tax_ids", "account_id", "name", "date", "cost_price"
 ]
