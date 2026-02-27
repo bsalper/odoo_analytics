@@ -53,7 +53,7 @@ def run():
     logger.info(f"Procesando - Históricas: {len(df_historical)}, Mes actual: {len(df_current)}")
 
     # 7. CARGA DE HISTÓRICO (Solo el día 1 del mes)
-    if today.day == 1:
+    if not df_historical.empty:
         if not df_historical.empty:
             logger.info("Hoy es día 1: Refrescando histórico en BigQuery...")
             load_dataframe(

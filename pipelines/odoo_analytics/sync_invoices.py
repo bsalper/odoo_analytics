@@ -44,7 +44,7 @@ def run():
     # 5. Carga de Datos a BigQuery
     
     # El histórico solo se refresca el día 1 del mes para ahorrar recursos
-    if today.day == 1: # not df_historico.empty: forzar subida
+    if not df_historico.empty: #today.day == 1:
         if not df_historico.empty:
             logger.info("Día 1 detectado: Actualizando tabla HISTÓRICA...")
             load_dataframe(
