@@ -12,7 +12,7 @@ def get_bigquery_client():
     # Construimos la ruta dinámica al JSON
     # Subimos dos niveles desde connectors/ hasta la raíz odoo_analytics/
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    cert_path = os.path.join(base_dir, 'credentials_google', 'odoo-analytics-482120-4a4cd8457bc7.json')
+    cert_path = os.path.join(base_dir, "secrets", "gcp", "google_credentials.json")
 
     if not os.path.exists(cert_path):
         logger.error(f"No se encontró el archivo de credenciales en: {cert_path}")

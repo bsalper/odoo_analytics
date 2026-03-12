@@ -2,7 +2,7 @@ import pandas as pd
 from utils.logger import get_logger
 from .utils import clean_and_serialize_dates, extract_many2one_id
 
-logger = get_logger("transform_orders")
+logger = get_logger("transform_pedidos")
 
 
 def transform_orders(orders_raw, valid_vendedor_ids=None, valid_client_ids=None):

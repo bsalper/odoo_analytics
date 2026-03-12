@@ -6,7 +6,7 @@ from .utils import (
     clean_and_serialize_dates
 )
 
-logger = get_logger("transform_invoices")
+logger = get_logger("transform_facturas")
 
 def transform_invoices(invoices_raw, valid_vendedor_ids=None, valid_client_ids=None):
     if not invoices_raw:

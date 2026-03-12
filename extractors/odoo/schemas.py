@@ -21,7 +21,7 @@ ORDER_LINE_FIELDS = [
 PRODUCT_FIELDS = [
     'id', 'default_code', 'name', 'uom_id',
     'list_price', 'standard_price', 'create_date',
-    'taxes_id', 'categ_id', 'sale_ok'
+    'taxes_id', 'categ_id', 'sale_ok', 'product_tmpl_id'
 ]
 
 TAX_FIELDS = [

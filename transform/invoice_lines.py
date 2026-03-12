@@ -5,7 +5,7 @@ from .utils import (
     clean_and_serialize_dates
 )
 
-logger = get_logger("transform_invoice_lines")
+logger = get_logger("transform_factura_detalles")
 
 def transform_invoice_lines(invoice_lines_raw, valid_invoice_ids=None):
     if not invoice_lines_raw:
@@ -36,9 +36,10 @@ def transform_invoice_lines(invoice_lines_raw, valid_invoice_ids=None):
     df["id_producto"] = df["product_id"].apply(extract_many2one_id)
 
     # 4. Normalizar numéricos
-    cols_numericas = ["cantidad", "precio_unitario", "costo_unitario", "subtotal", "total", "descuento"]
-    for col in cols_numericas:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
+    numeric_fields = ["cantidad", "precio_unitario", "costo_unitario", "subtotal", "total", "descuento"]
+    for field in numeric_fields:
+        if field in df.columns:
+            df[field] = pd.to_numeric(df[field], errors="coerce").fillna(0.0)
 
     # 5. Tipado de IDs
     df["id_factura"] = pd.to_numeric(df["id_factura"], errors="coerce").astype("Int64")
@@ -50,7 +51,8 @@ def transform_invoice_lines(invoice_lines_raw, valid_invoice_ids=None):
     df = df[df["total"] != 0]
 
     # 7. Preparar la fecha para el filtro del pipeline
-    df["fecha_filtro"] = pd.to_datetime(df["fecha_filtro"], errors="coerce")
+    if "fecha_filtro" in df.columns:
+        df["fecha_filtro"] = pd.to_datetime(df["fecha_filtro"], errors="coerce").dt.date
 
     # 8. Selección final (SIN fecha_creacion, pero CON fecha_filtro para el pipeline)
     final_cols = [

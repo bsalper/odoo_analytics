@@ -1,49 +1,55 @@
-import os
+# loaders/google_sheets_loader.py
 import pandas as pd
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
+import numpy as np
+from datetime import date, datetime
+from connectors.google_sheets import get_gs_service
 from utils.logger import get_logger
 
 logger = get_logger("google_sheets_loader")
 
-def get_gs_service():
-    # Ruta absoluta al archivo que ya confirmamos que existe
-    cert_path = r"C:\Users\MF\Documents\odoo_analytics\credentials_google\odoo-analytics-482120-4a4cd8457bc7.json"
-    
-    # Scopes tal cual el código guía
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    
-    # Autenticación explícita
-    creds = Credentials.from_service_account_file(cert_path, scopes=scopes)
-    service = build('sheets', 'v4', credentials=creds)
-    return service
-
 def upload_dataframe_to_sheet(df, spreadsheet_id, sheet_name="Sheet1"):
     try:
+        if df.empty:
+            logger.warning(f"El DataFrame está vacío. Saltando carga para {sheet_name}")
+            return
+
         service = get_gs_service()
         
-        # Limpieza de datos: Convertir NaNs a strings vacíos para evitar errores
-        df_clean = df.fillna("")
+        # 1. Copia del dataframe para no afectar el original
+        df_clean = df.copy()
+
+        # 2. CONVERSIÓN DE FECHAS
+        for col in df_clean.columns:
+            if pd.api.types.is_datetime64_any_dtype(df_clean[col]) or \
+               df_clean[col].apply(lambda x: isinstance(x, (date, datetime))).any():
+                df_clean[col] = pd.to_datetime(df_clean[col], errors='coerce').dt.strftime('%Y-%m-%d')
+
+        # 3. Limpieza de Nulos (NaN, None)
+        df_clean = df_clean.replace({np.nan: '', None: ''})
         
-        # Convertir a lista de listas (incluyendo encabezados)
+        # 4. Preparar datos para la API
+        # Al sumarlos con +, se crea una gran lista donde la primera fila son los títulos y las siguientes son los datos.
         data = [df_clean.columns.tolist()] + df_clean.values.tolist()
 
-        # Limpiar el rango antes de escribir (B hasta E como tu guía o A:Z completo)
+        # Usamos comillas simples en el nombre de la hoja por si tiene espacios
+        range_full = f"'{sheet_name}'!A:Z"
+        range_start = f"'{sheet_name}'!A1"
+
+        # Limpiar y Cargar con USER_ENTERED
         service.spreadsheets().values().clear(
             spreadsheetId=spreadsheet_id, 
-            range=f"{sheet_name}!A:Z"
+            range=range_full
         ).execute()
 
-        # Escribir los datos
         service.spreadsheets().values().update(
             spreadsheetId=spreadsheet_id,
-            range=f"{sheet_name}!A1",
-            valueInputOption="RAW",
+            range=range_start,
+            valueInputOption="USER_ENTERED",   # este es el interprete, actua como si una persona estuviera escribiendo
             body={"values": data}
         ).execute()
 
-        logger.info(f"Datos cargados exitosamente en Google Sheets ID: {spreadsheet_id}")
-
+        logger.info(f"{len(df)} filas cargadas en la pestaña: {sheet_name}")
+        
     except Exception as e:
-        logger.error(f"Error en la carga a Sheets: {e}")
+        logger.error(f"Error en la carga a Sheets ({sheet_name}): {e}")
         raise

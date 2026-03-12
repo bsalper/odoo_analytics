@@ -23,7 +23,8 @@ logger = get_logger("sync_products_analytics")
 # -------------------------
 
 SCHEMA_PRODUCTOS = [
-    bigquery.SchemaField("id_producto", "INTEGER"),
+    bigquery.SchemaField("id_producto_variante", "INTEGER"),
+    bigquery.SchemaField("id_producto_padre", "INTEGER"),
     bigquery.SchemaField("referencia_interna", "STRING"),
     bigquery.SchemaField("nombre_producto", "STRING"),
     bigquery.SchemaField("unidad_medida", "STRING"),
@@ -35,13 +36,11 @@ SCHEMA_PRODUCTOS = [
 ]
 
 SCHEMA_PRODUCTO_IMPUESTO = [
-    bigquery.SchemaField("id_producto", "INTEGER"),
+    bigquery.SchemaField("id_producto_variante", "INTEGER"),
     bigquery.SchemaField("id_impuestos", "INTEGER"),
 ]
 
-# -------------------------
 # Helpers
-# -------------------------
 
 def get_valid_tax_ids(client_bq):
     logger.info("Leyendo impuestos permitidos desde BigQuery...")
@@ -54,9 +53,7 @@ def get_valid_tax_ids(client_bq):
     df = client_bq.query(query).to_dataframe()
     return df["id_impuestos"].dropna().astype(int).tolist()
 
-# -------------------------
 # Pipeline principal
-# -------------------------
 
 def run():
     logger.info("Iniciando pipeline ANALYTICS directo: Odoo -> BigQuery")
