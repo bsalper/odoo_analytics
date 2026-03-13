@@ -21,7 +21,7 @@ def run():
     today = date.today()
     month_start = today.replace(day=1)
 
-    # 3. Extracción Detalle desde Odoo (Trae todo desde 2025 según tu extractor)
+    # 3. Extracción Detalle desde Odoo
     invoice_lines_raw = get_invoice_lines_raw(odoo_client)
     
     if not invoice_lines_raw:
@@ -29,22 +29,22 @@ def run():
         return
 
     # 4. Transformación 
-    # Asegúrate de que transform_invoice_lines NO esté filtrando por IDs vacíos internamente
     df_lines = transform_invoice_lines(invoice_lines_raw=invoice_lines_raw)
 
     if df_lines.empty:
         logger.info("El DataFrame transformado está vacío.")
         return
 
+    # --- CAMBIO CRÍTICO 1: Asegurar que fecha_filtro sea datetime ---
+    # Esto evita el error "AttributeError: Can only use .dt accessor..."
+    df_lines["fecha_filtro"] = pd.to_datetime(df_lines["fecha_filtro"], errors='coerce')
+
     # 5. Separar data usando la columna temporal 'fecha_filtro'
-    month_start = date.today().replace(day=1)
-    
-    # Filtramos
+    # Usamos .dt.date para comparar contra objetos date de Python
     df_historical = df_lines[df_lines["fecha_filtro"].dt.date < month_start].copy()
     df_current = df_lines[df_lines["fecha_filtro"].dt.date >= month_start].copy()
 
-    # 6. IMPORTANTE: Borrar la columna temporal antes de cargar a BigQuery
-    # Así BigQuery no recibe la columna y no da error de esquema
+    # 6. Borrar la columna temporal antes de cargar
     if not df_historical.empty:
         df_historical = df_historical.drop(columns=["fecha_filtro"])
     if not df_current.empty:
@@ -52,8 +52,10 @@ def run():
 
     logger.info(f"Procesando - Históricas: {len(df_historical)}, Mes actual: {len(df_current)}")
 
-    # 7. CARGA DE HISTÓRICO (Solo el día 1 del mes)
-    if not df_historical.empty:
+    # --- CAMBIO CRÍTICO 2: Lógica del Día 1 ---
+    # Solo sobreescribimos la tabla histórica si hoy es el primer día del mes.
+    # Si no, estaríamos procesando medio millón de filas innecesariamente cada día.
+    if today.day == 1:
         if not df_historical.empty:
             logger.info("Hoy es día 1: Refrescando histórico en BigQuery...")
             load_dataframe(
@@ -63,7 +65,7 @@ def run():
             )
             logger.info(f"Cargadas {len(df_historical)} líneas en histórico.")
     else:
-        logger.info(f"Hoy es día {today.day}: Se omite histórico.")
+        logger.info(f"Hoy es día {today.day}: Se omite la actualización del histórico para ahorrar tiempo.")
 
     # 8. CARGA DE MES ACTUAL (Todos los días)
     if not df_current.empty:

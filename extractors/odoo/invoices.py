@@ -5,7 +5,7 @@ def get_invoices_raw(client):
     """Extrae las cabeceras de las facturas (account.move)"""
     domain = [
         ("move_type", "in", ["out_invoice", "out_refund"]),
-        ("invoice_date", ">=", "2026-01-01"),
+        ("invoice_date", ">=", "2025-01-01"),
         ("state", "=", "posted")
     ]
 
@@ -18,7 +18,7 @@ def get_invoices_raw(client):
 
 def get_invoice_lines_raw(client):
     """Extrae el detalle/líneas de las facturas (account.move.line)"""
-    fecha_rescate = "2026-01-01"
+    fecha_rescate = "2025-01-01"
 
     domain = [
         ("move_id.move_type", "in", ["out_invoice", "out_refund"]),

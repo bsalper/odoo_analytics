@@ -19,11 +19,11 @@ TABLE_PRODUCTO_IMPUESTO = "producto_impuesto"
 logger = get_logger("sync_products_analytics")
 
 # -------------------------
-# SCHEMAS
+# SCHEMAS AJUSTADOS (9 Columnas según tu Maestro)
 # -------------------------
 
 SCHEMA_PRODUCTOS = [
-    bigquery.SchemaField("id_producto_variante", "INTEGER"),
+    bigquery.SchemaField("id_producto_variante", "INTEGER"), # ID Maestro (Padre)
     bigquery.SchemaField("id_producto_padre", "INTEGER"),
     bigquery.SchemaField("referencia_interna", "STRING"),
     bigquery.SchemaField("nombre_producto", "STRING"),
@@ -73,9 +73,9 @@ def run():
             logger.warning("No se obtuvieron productos desde Odoo.")
             return
 
-        logger.info(f"Productos extraídos: {len(products_raw)}")
+        logger.info(f"Productos extraídos desde Odoo: {len(products_raw)}")
 
-        # 4. Transformación
+        # 4. Transformación (Aquí el transformador debe devolver 400 registros)
         df_productos, df_producto_impuesto = transform_products(
             products_raw,
             valid_tax_ids
@@ -85,12 +85,13 @@ def run():
             logger.warning("Después de la transformación no quedaron productos válidos.")
             return
 
-        logger.info(f"Productos transformados: {len(df_productos)}")
-        logger.info(f"Relaciones producto-impuesto: {len(df_producto_impuesto)}")
+        # ESTE LOG ES VITAL: Verifica si aquí sale 400 o 498
+        logger.info(f"Productos listos para cargar: {len(df_productos)}")
 
         # 5. Carga tabla productos
         table_productos_id = f"{PROJECT_ID}.{DATASET_ANALYTICS}.{TABLE_PRODUCTOS}"
 
+        logger.info(f"Cargando {len(df_productos)} filas en {table_productos_id} con TRUNCATE...")
         load_dataframe(
             df=df_productos,
             table_id=table_productos_id,
@@ -108,16 +109,11 @@ def run():
             schema=SCHEMA_PRODUCTO_IMPUESTO,
         )
 
-        logger.info(
-            f"Pipeline finalizado correctamente. "
-            f"{len(df_productos)} productos y "
-            f"{len(df_producto_impuesto)} relaciones cargadas."
-        )
+        logger.info("Pipeline finalizado correctamente.")
 
     except Exception as e:
         logger.exception(f"Error en pipeline sync_products: {e}")
         raise
-
 
 if __name__ == "__main__":
     run()

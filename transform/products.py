@@ -21,16 +21,18 @@ def transform_products(products_raw, valid_tax_ids):
 
     # 1. Preparar datos de Odoo
     df_odoo = pd.DataFrame(products_raw).copy()
+    
+    # Extraemos IDs técnicos de Odoo
     df_odoo["id_odoo_variante"] = pd.to_numeric(df_odoo["id"], errors="coerce").astype("Int64")
     df_odoo["id_odoo_padre"] = df_odoo["product_tmpl_id"].apply(
         lambda x: x[0] if isinstance(x, list) else None
     ).astype("Int64")
 
-    # 2. Obtener los 400 IDs de tu tabla Maestra en BigQuery
+    # 2. Obtener los 400 IDs de tu tabla Maestra
     df_maestro = get_valid_product_ids()
 
     # 3. MATCH MAESTRO (LEFT JOIN)
-    # Unimos para que el resultado sea IGUAL a los IDs del maestro
+    # Mandan los IDs de tu tabla de atributos
     df = pd.merge(
         df_maestro,
         df_odoo,
@@ -39,11 +41,10 @@ def transform_products(products_raw, valid_tax_ids):
         how="left"
     )
 
-    # Si un producto de tu maestro tiene varias variantes en Odoo,
-    # nos quedamos solo con la primera para mantener los 400.
+    # Evitamos duplicados para mantener la estructura de 400 filas
     df = df.drop_duplicates(subset=["id_producto"], keep="first")
 
-    # 4. Extracción de nombres Many2one
+    # 4. Extracción de nombres Many2one (Unidad y Categoría)
     def extract_many2one_name(value):
         if isinstance(value, list) and len(value) > 1:
             return value[1]
@@ -52,7 +53,7 @@ def transform_products(products_raw, valid_tax_ids):
     df["unidad_medida"] = df["uom_id"].apply(extract_many2one_name)
     df["categoria"] = df["categ_id"].apply(extract_many2one_name)
 
-    # 5. Renombrado y Limpieza
+    # 5. Renombrado y Limpieza de campos Odoo
     df = df.rename(columns={
         "default_code": "referencia_interna",
         "name": "nombre_producto",
@@ -62,30 +63,51 @@ def transform_products(products_raw, valid_tax_ids):
         "sale_ok": "puede_ser_vendido"
     })
 
-    # Formateo de tipos
+    # Formateo de tipos básicos
     df["precio_unitario"] = pd.to_numeric(df["precio_unitario"], errors="coerce").fillna(0).astype(float)
     df["coste_unitario"] = pd.to_numeric(df["coste_unitario"], errors="coerce").fillna(0).astype(float)
     df["fecha_creacion"] = pd.to_datetime(df["fecha_creacion"], errors="coerce").dt.date
     df["puede_ser_vendido"] = df["puede_ser_vendido"].fillna(False).astype(bool)
     df["referencia_interna"] = df["referencia_interna"].fillna("").astype(str)
 
-    # --- RESULTADO 1: TABLA PRODUCTOS (Tus 9 columnas solicitadas) ---
+    # 6. Sincronización con el SCHEMA de BigQuery
+    df = df.rename(columns={
+        "id_producto": "id_producto_padre",        # El del maestro
+        "id_odoo_variante": "id_producto_variante"  # La variante técnica
+    })
+
+    # Si un producto no tiene match en Odoo, rellenamos variante con el ID del padre
+    df["id_producto_variante"] = df["id_producto_variante"].fillna(df["id_producto_padre"])
+
+    # FORZADO DE TIPOS PARA EVITAR ERROR PYARROW
+    df["id_producto_padre"] = df["id_producto_padre"].astype('int64')
+    df["id_producto_variante"] = df["id_producto_variante"].astype('int64')
+
+    # --- RESULTADO 1: TABLA PRODUCTOS ---
     columnas_finales = [
-        "id_producto", "referencia_interna", "nombre_producto", "unidad_medida",
-        "precio_unitario", "coste_unitario", "fecha_creacion", "puede_ser_vendido", "categoria"
+        "id_producto_variante", "id_producto_padre", "referencia_interna", 
+        "nombre_producto", "unidad_medida", "precio_unitario", 
+        "coste_unitario", "fecha_creacion", "puede_ser_vendido", "categoria"
     ]
     df_productos = df[columnas_finales].reset_index(drop=True)
 
     # --- RESULTADO 2: TABLA PUENTE IMPUESTOS ---
-    # Usamos los datos de Odoo originales filtrados por los IDs de tu maestro
+    # Usamos df_odoo filtrado por los IDs que sí están en el maestro
     df_rel = df_odoo[df_odoo["id_odoo_padre"].isin(df_maestro["id_producto"])].copy()
     df_rel = df_rel.explode("taxes_id")
     df_rel["id_impuestos"] = pd.to_numeric(df_rel["taxes_id"], errors="coerce")
     
     valid_tax_set = set(map(int, valid_tax_ids))
-    df_producto_impuesto = df_rel[df_rel["id_impuestos"].isin(valid_tax_set)]
-    df_producto_impuesto = df_producto_impuesto.rename(columns={"id_odoo_padre": "id_producto"})
-    df_producto_impuesto = df_producto_impuesto[["id_producto", "id_impuestos"]].dropna().reset_index(drop=True)
+    df_producto_impuesto = df_rel[df_rel["id_impuestos"].isin(valid_tax_set)].copy()
+    
+    # Renombrado para que coincida con SCHEMA_PRODUCTO_IMPUESTO
+    df_producto_impuesto = df_producto_impuesto.rename(columns={"id_odoo_variante": "id_producto_variante"})
+    
+    # Aseguramos tipos para la tabla puente también
+    df_producto_impuesto["id_producto_variante"] = df_producto_impuesto["id_producto_variante"].astype('int64')
+    df_producto_impuesto["id_impuestos"] = df_producto_impuesto["id_impuestos"].astype('int64')
+
+    df_producto_impuesto = df_producto_impuesto[["id_producto_variante", "id_impuestos"]].dropna().reset_index(drop=True)
 
     logger.info(f"Match exitoso: {len(df_productos)} productos únicos basados en el maestro.")
     return df_productos, df_producto_impuesto
