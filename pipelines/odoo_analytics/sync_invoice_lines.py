@@ -3,8 +3,8 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from connectors.odoo import get_odoo_client
-from extractors.odoo.invoices import get_invoice_lines_raw # Cambia el extractor
-from transform.invoice_lines import transform_invoice_lines # Cambia la transformación
+from extractors.odoo.invoices import get_invoice_lines_raw
+from transform.invoice_lines import transform_invoice_lines
 from loaders.bigquery_loader import load_dataframe
 from utils.logger import get_logger
 
@@ -17,7 +17,6 @@ logger = get_logger("sync_detalle")
 
 def check_if_month_exists(first_day_month):
     client = bigquery.Client()
-    # En detalles, solemos usar la columna 'date' o 'fecha' según tu transformación
     query = f"""
         SELECT COUNT(1) FROM `{TABLE_HIST}` 
         WHERE DATE(date) = '{first_day_month}' 
@@ -40,7 +39,6 @@ def run():
         if check_if_month_exists(f_inicio):
             logger.warning(f"Mes {f_inicio} ya existe en histórico de detalles.")
         else:
-            # Usamos inicio y fin para capturar exactamente el mes pasado
             raw_cerrado = get_invoice_lines_raw(odoo_client, fecha_inicio=f_inicio, fecha_fin=f_fin)
             df_cerrado = transform_invoice_lines(raw_cerrado)
 

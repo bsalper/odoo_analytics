@@ -1,10 +1,9 @@
 name: Sync Odoo Analytics (Cabecera y Detalle)
 
 on:
-  # Se ejecuta automáticamente todos los días a las 05:00 AM Chile (08:00 UTC)
+  # Se ejecuta automáticamente todos los días a las 05:00 AM Chile
   schedule:
     - cron: '0 8 * * *'
-  # Mantenemos la ejecución manual por si necesitas forzar una carga
   workflow_dispatch: 
 
 jobs:
@@ -27,8 +26,6 @@ jobs:
           pip install -r requirements.txt
 
       - name: Create GCP credentials file
-        # Eliminamos el base64 --decode a menos que SEPAS que lo subiste así.
-        # La mayoría de las veces se pega el JSON directo.
         run: |
           echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > gcp-key.json
 
