@@ -1,44 +1,77 @@
+import pandas as pd
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from connectors.odoo import get_odoo_client
+from extractors.odoo.invoices import get_invoices_raw, get_invoice_lines_raw
+from transform.invoices import transform_invoices
+from transform.invoice_lines import transform_invoice_lines
+from loaders.bigquery_loader import load_dataframe
+from utils.logger import get_logger
 
-def test_relation():
-    try:
-        # 1. Conectamos usando tu función
-        client = get_odoo_client()
+# Configuración
+PROJECT_ID = "odoo-analytics-482120"
+DATASET = "odoo_analytics"
+logger = get_logger("carga_masiva_historica")
+
+def run_bulk_load():
+    odoo_client = get_odoo_client()
+    
+    # Definimos el rango: Desde enero 2023
+    fecha_inicio_proceso = datetime(2023, 1, 1)
+
+    # Calculamos el último día del mes pasado
+    # Si hoy es marzo 2026, esto dará 28 de febrero de 2026
+    hoy = datetime.today()
+    fecha_fin_proceso = (hoy.replace(day=1) - relativedelta(days=1))
+    
+    logger.info(f"Iniciando carga masiva desde {fecha_inicio_proceso.date()} hasta {fecha_fin_proceso.date()}")
+    
+    cursor_mes = fecha_inicio_proceso
+
+    while cursor_mes <= fecha_fin_proceso:
+        f_inicio = cursor_mes.strftime('%Y-%m-%d')
+        f_fin = (cursor_mes + relativedelta(months=1, days=-1)).strftime('%Y-%m-%d')
         
-        # 2. Definimos qué buscar
-        variante_id = 875 
-        dominio = [["id", "=", variante_id]]
-        campos = ["id", "display_name", "product_tmpl_id"]
-        
-        print(f"Buscando relación para el ID {variante_id}...")
+        logger.info(f"=== PROCESANDO MES: {f_inicio} al {f_fin} ===")
 
-        # 3. Usamos tu método search_read
-        resultado = client.search_read('product.product', dominio, campos)
-
-        if resultado:
-            p = resultado[0]
-            tmpl_info = p.get('product_tmpl_id')
+        # --- 1. CABECERAS (Facturas) ---
+        raw_invoices = get_invoices_raw(odoo_client, fecha_inicio=f_inicio)
+        # Filtramos manualmente el fin de mes para las cabeceras si el extractor no lo hace
+        df_invoices = transform_invoices(raw_invoices)
+        if not df_invoices.empty:
+            # Aseguramos que solo suba lo del mes actual del cursor
+            df_invoices['fecha'] = pd.to_datetime(df_invoices['fecha_factura'])
+            df_inv_mes = df_invoices[(df_invoices['fecha'] >= f_inicio) & (df_invoices['fecha'] <= f_fin)].copy()
+            df_inv_mes = df_inv_mes.drop(columns=['fecha'])
             
-            if tmpl_info:
-                # El formato de un Many2one en Odoo es [ID, "Nombre"]
-                tmpl_id = tmpl_info[0]
-                tmpl_name = tmpl_info[1]
-                
-                print("\n" + "="*40)
-                print("RESULTADO DE LA PRUEBA")
-                print("="*40)
-                print(f"ID Variante (Factura): {p['id']}")
-                print(f"Nombre Variante:       {p['display_name']}")
-                print(f"ID Template (Padre):   {tmpl_id}  <-- ¿ES EL 900?")
-                print(f"Nombre Template:       {tmpl_name}")
-                print("="*40)
-            else:
-                print("El producto se encontró, pero no tiene Template asociado.")
-        else:
-            print(f"No se encontró ningún producto con ID {variante_id}")
+            if not df_inv_mes.empty:
+                load_dataframe(
+                    df=df_inv_mes,
+                    table_id=f"{PROJECT_ID}.{DATASET}.facturas_cabecera_historico",
+                    write_disposition="WRITE_APPEND" # Sumamos al histórico
+                )
+                logger.info(f"Cabeceras: {len(df_inv_mes)} registros subidos.")
 
-    except Exception as e:
-        print(f"Error durante la ejecución: {e}")
+        # --- 2. DETALLES (Líneas) ---
+        raw_lines = get_invoice_lines_raw(odoo_client, fecha_inicio=f_inicio, fecha_fin=f_fin)
+        if raw_lines:
+            df_lines = transform_invoice_lines(raw_lines)
+            if not df_lines.empty:
+                # Eliminamos la columna temporal si tu transformador la crea
+                if "fecha_filtro" in df_lines.columns:
+                    df_lines = df_lines.drop(columns=["fecha_filtro"])
+                
+                load_dataframe(
+                    df=df_lines,
+                    table_id=f"{PROJECT_ID}.{DATASET}.facturas_detalle_historico",
+                    write_disposition="WRITE_APPEND" # Sumamos al histórico
+                )
+                logger.info(f"Detalles: {len(df_lines)} registros subidos.")
+
+        # Avanzar al siguiente mes
+        cursor_mes += relativedelta(months=1)
+
+    logger.info("ARGA MASIVA FINALIZADA")
 
 if __name__ == "__main__":
-    test_relation()
+    run_bulk_load()
