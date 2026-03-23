@@ -1,4 +1,4 @@
-name: Sync Odoo Analytics (Cabecera y Detalle)
+name: Sync Odoo Analytics (Pedido y Factura)
 
 on:
   # Se ejecuta automáticamente todos los días a las 05:00 AM Chile
@@ -29,7 +29,7 @@ jobs:
         run: |
           echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > gcp-key.json
 
-      - name: Run Analytics Pipeline - CABECERA
+      - name: Run Analytics Pipeline - FACTURA CABECERA
         env:
           ODOO_URL: ${{ secrets.ODOO_URL }}
           ODOO_DB: ${{ secrets.ODOO_DB }}
@@ -40,7 +40,7 @@ jobs:
         run: |
           python pipelines/odoo_analytics/sync_invoices.py
 
-      - name: Run Analytics Pipeline - DETALLE
+      - name: Run Analytics Pipeline - FACTURA DETALLE
         env:
           ODOO_URL: ${{ secrets.ODOO_URL }}
           ODOO_DB: ${{ secrets.ODOO_DB }}
@@ -50,3 +50,23 @@ jobs:
           PYTHONPATH: .
         run: |
           python pipelines/odoo_analytics/sync_invoice_lines.py
+
+      - name: Run Analytics Pipeline - PEDIDOS CABECERA
+        env:
+          ODOO_URL: ${{ secrets.ODOO_URL }}
+          ODOO_DB: ${{ secrets.ODOO_DB }}
+          ODOO_USER: ${{ secrets.ODOO_USER }}
+          ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
+          PYTHONPATH: .
+        run: python pipelines/odoo_analytics/sync_order.py
+
+      - name: Run Analytics Pipeline - PEDIDOS DETALLE
+        env:
+          ODOO_URL: ${{ secrets.ODOO_URL }}
+          ODOO_DB: ${{ secrets.ODOO_DB }}
+          ODOO_USER: ${{ secrets.ODOO_USER }}
+          ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
+          PYTHONPATH: .
+        run: python pipelines/odoo_analytics/sync_order_line.py
