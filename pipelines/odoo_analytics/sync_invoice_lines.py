@@ -10,6 +10,9 @@ from utils.logger import get_logger
 
 PROJECT_ID = "odoo-analytics-482120"
 DATASET = "odoo_analytics"
+
+TABLE_CABECERA_HIST = f"{PROJECT_ID}.{DATASET}.facturas_cabecera_historico"
+
 TABLE_HIST = f"{PROJECT_ID}.{DATASET}.facturas_detalle_historico"
 TABLE_ACTUAL = f"{PROJECT_ID}.{DATASET}.facturas_detalle_mes_actual"
 
@@ -18,8 +21,8 @@ logger = get_logger("sync_detalle")
 def check_if_month_exists(first_day_month):
     client = bigquery.Client()
     query = f"""
-        SELECT COUNT(1) FROM `{TABLE_HIST}` 
-        WHERE DATE(date) = '{first_day_month}' 
+        SELECT COUNT(1) FROM `{TABLE_CABECERA_HIST}` 
+        WHERE DATE(fecha_factura) = '{first_day_month}' 
         LIMIT 1
     """
     query_job = client.query(query)
@@ -32,7 +35,7 @@ def run():
     today = date.today()
     
     # --- 1. CIERRE DE MES (Día 1) ---
-    if today.day == 1:
+    if today.day == 2:
         f_inicio = (today - relativedelta(months=1)).replace(day=1).strftime('%Y-%m-%d')
         f_fin = (today - relativedelta(days=1)).strftime('%Y-%m-%d')
 
