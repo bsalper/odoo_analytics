@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import ast
 from .utils import extract_many2one_name
 

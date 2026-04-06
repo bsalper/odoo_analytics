@@ -1,8 +1,7 @@
 import pandas as pd
 from utils.logger import get_logger
 from .utils import (
-    extract_many2one_id,
-    clean_and_serialize_dates
+    extract_many2one_id
 )
 
 logger = get_logger("transform_factura_detalles")
