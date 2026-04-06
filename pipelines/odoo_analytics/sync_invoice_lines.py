@@ -35,7 +35,7 @@ def run():
     today = date.today()
     
     # --- 1. CIERRE DE MES (Día 1) ---
-    if today.day == 2:
+    if today.day == 1:
         f_inicio = (today - relativedelta(months=1)).replace(day=1).strftime('%Y-%m-%d')
         f_fin = (today - relativedelta(days=1)).strftime('%Y-%m-%d')
 
