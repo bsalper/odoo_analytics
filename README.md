@@ -1,4 +1,4 @@
-# Odoo to BigQuery ETL Pipeline
+# Odoo a BigQuery ETL Pipeline
 ### Automatización de Análisis de Ventas y Facturación
 
 Este proyecto implementa un pipeline de datos (ETL) que extrae información comercial desde **Odoo ERP**, la procesa mediante **Python** y la carga automáticamente en **Google BigQuery** para su visualización en herramientas de BI como Power BI o Looker Studio.

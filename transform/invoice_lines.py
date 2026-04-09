@@ -19,7 +19,7 @@ def transform_invoice_lines(invoice_lines_raw, valid_invoice_ids=None):
         "quantity": "cantidad",
         "price_unit": "precio_unitario",
         "price_subtotal": "subtotal",
-        "date": "fecha_filtro",
+        "date": "fecha_filtro", # nombre temporal para facilitar el filtro en el pipeline
         "discount": "descuento",
         "cost_price": "costo_unitario"
     })
@@ -49,14 +49,10 @@ def transform_invoice_lines(invoice_lines_raw, valid_invoice_ids=None):
     df = df.dropna(subset=["id_producto", "id_factura"])
     df = df[df["total"] != 0]
 
-    # 7. Preparar la fecha para el filtro del pipeline
-    if "fecha_filtro" in df.columns:
-        df["fecha_filtro"] = pd.to_datetime(df["fecha_filtro"], errors="coerce").dt.date
-
     # 8. Selección final (SIN fecha_creacion, pero CON fecha_filtro para el pipeline)
     final_cols = [
         "id_linea_factura", "id_factura", "id_producto", "cantidad", "costo_unitario",
-        "precio_unitario", "subtotal", "descuento", "total", "fecha_filtro"
+        "precio_unitario", "subtotal", "descuento", "total"
     ]
     df = df.reindex(columns=final_cols)
 
