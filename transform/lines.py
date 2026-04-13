@@ -11,7 +11,7 @@ def transform_pedido_detalle(lines_raw, valid_product_ids=None, valid_order_ids=
 
     df = pd.DataFrame(lines_raw)
 
-    # --- 1. Normalización many2one ---
+    # 1. Normalización many2one
     if "order_id" in df.columns:
         df["id_pedido"] = df["order_id"].apply(extract_many2one_id)
     else:
@@ -27,7 +27,7 @@ def transform_pedido_detalle(lines_raw, valid_product_ids=None, valid_order_ids=
     else:
         df["id_cliente"] = None
 
-    # --- 2. Renombrar columnas ---
+    # 2. Renombrar columnas
     df = df.rename(columns={
         "id": "id_linea",
         "discount": "descuento",
@@ -36,26 +36,26 @@ def transform_pedido_detalle(lines_raw, valid_product_ids=None, valid_order_ids=
         "price_subtotal": "subtotal"
     })
 
-    # --- 3. Asegurar tipos numéricos ---
+    # 3. Asegurar tipos numéricos
     cols_numericas = ["cantidad", "precio_unitario", "subtotal", "descuento"]
     for col in cols_numericas:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-    # --- 4. Asegurar IDs como enteros ---
+    # 4. Asegurar IDs como enteros
     cols_ids = ["id_linea", "id_pedido", "id_producto", "id_cliente"]
     for col in cols_ids:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
 
-    # --- 5. Filtros opcionales ---
+    # 5. Filtros opcionales
     if valid_product_ids:
         df = df[df["id_producto"].isin(valid_product_ids)]
 
     if valid_order_ids:
         df = df[df["id_pedido"].isin(valid_order_ids)]
 
-    # --- 6. Selección final ---
+    # 6. Selección final
     df = df[
         [
             "id_linea",

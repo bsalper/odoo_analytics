@@ -11,12 +11,12 @@ def transform_orders(orders_raw, valid_vendedor_ids=None, valid_client_ids=None)
 
     df = pd.DataFrame(orders_raw)
 
-    # --- 1. Normalización many2one (extraer ID entero) ---
+    # 1. Normalización many2one (extraer ID entero)
     df["id_cliente"] = df.get("partner_id", pd.Series()).apply(extract_many2one_id)
     df["id_vendedor"] = df.get("user_id", pd.Series()).apply(extract_many2one_id)
     df["id_direccion_entrega"] = df.get("partner_shipping_id", pd.Series()).apply(extract_many2one_id)
     
-    # --- 2. Manejo Crítico de la Excepción ---
+    # 2. Manejo Crítico de la Excepción
     def safe_exception(x):
         """Extrae el nombre de la excepción si es un many2one [id, name] o string"""
         if isinstance(x, list) and len(x) > 1:
@@ -33,7 +33,7 @@ def transform_orders(orders_raw, valid_vendedor_ids=None, valid_client_ids=None)
     else:
         df["excepcion"] = ""
 
-    # --- 2. Renombrado de columnas ---
+    # 2. Renombrado de columnas
     df = df.rename(columns={
         "id": "id_pedido",
         "name": "referencia_pedido",
@@ -47,7 +47,7 @@ def transform_orders(orders_raw, valid_vendedor_ids=None, valid_client_ids=None)
         "invoice_status": "estado_facturacion"
     })
 
-    # --- 3. Conversión de tipos ---
+    # 3. Conversión de tipos
     for col in ["id_pedido", "id_cliente", "id_vendedor", "id_direccion_entrega"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
@@ -56,25 +56,25 @@ def transform_orders(orders_raw, valid_vendedor_ids=None, valid_client_ids=None)
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
 
-    # --- 4. Limpieza de strings ---
+    # 4. Limpieza de strings
     str_cols = ["referencia_pedido", "excepcion", "comentarios", "estado_pedido", "estado_facturacion"]
     for col in str_cols:
         if col in df.columns:
             df[col] = df[col].astype(str).replace(["None", "False", "nan", "<NA>"], "")
 
-    # --- 5. Fechas (Solo DATE) ---
+    # 5. Fechas (Solo DATE)
     date_cols = ["fecha_creacion", "fecha_pedido"]
     for col in date_cols:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce").dt.date
 
-    # --- 6. Filtros ---
+    # 6. Filtros
     if valid_vendedor_ids:
         df = df[df["id_vendedor"].isin(valid_vendedor_ids)]
     if valid_client_ids:
         df = df[df["id_cliente"].isin(valid_client_ids)]
 
-    # --- 7. Selección final ---
+    # 7. Selección final
     columnas_finales = [
         "id_pedido",
         "referencia_pedido",
