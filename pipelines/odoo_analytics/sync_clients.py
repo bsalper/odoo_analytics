@@ -1,5 +1,5 @@
 from connectors.odoo import get_odoo_client
-from extractors.odoo.clients import get_clients_raw, get_partner_categories_raw
+from extractors.odoo.clients import get_clients_raw
 from transform.clients import transform_clients
 from loaders.bigquery_loader import load_dataframe
 from utils.logger import get_logger
@@ -15,29 +15,6 @@ DATASET_ANALYTICS = os.getenv("BQ_DATASET_ANALYTICS")
 TABLE_CLIENTES = "clientes"
 
 logger = get_logger("sync_clients_analytics")
-
-SCHEMA_CLIENTES = [
-    bigquery.SchemaField("id_cliente", "INTEGER"),
-    bigquery.SchemaField("tipo_compania", "STRING"),
-    bigquery.SchemaField("tipo_direccion", "STRING"),
-    bigquery.SchemaField("nombre_cliente", "STRING"),
-    bigquery.SchemaField("rut", "STRING"),
-    bigquery.SchemaField("dia_visita", "STRING"),
-    bigquery.SchemaField("calle", "STRING"),
-    bigquery.SchemaField("calle2", "STRING"),
-    bigquery.SchemaField("comuna", "STRING"),
-    bigquery.SchemaField("ciudad", "STRING"),
-    bigquery.SchemaField("correo", "STRING"),
-    bigquery.SchemaField("telefono", "STRING"),
-    bigquery.SchemaField("fecha_creacion", "TIMESTAMP"),
-    bigquery.SchemaField("id_plazo_pago", "STRING"),
-    bigquery.SchemaField("credito_limite", "FLOAT"),
-    bigquery.SchemaField("id_tarifa", "STRING"),
-    bigquery.SchemaField("geo_latitud", "FLOAT"),
-    bigquery.SchemaField("geo_longitud", "FLOAT"),
-    bigquery.SchemaField("id_vendedor", "INTEGER"),
-    bigquery.SchemaField("etiquetas", "STRING"),
-]
 
 # Helpers
 def get_valid_vendedor_ids(client_bq):
@@ -72,17 +49,11 @@ def run():
             return
 
         logger.info(f"Clientes extraídos: {len(clients_raw)}")
-
-        # 3.1 Extraer etiquetas
-        tags_raw = get_partner_categories_raw(odoo_client)
-
-        tag_map = {int(tag["id"]): tag["name"] for tag in tags_raw}
-     
         
         # 4. Transformación
         df_clientes = transform_clients(
             clients_raw,
-            tag_map=tag_map,
+            tag_map={},
             valid_vendedor_ids=valid_vendedor_ids
         )
 
@@ -99,7 +70,6 @@ def run():
             df=df_clientes,
             table_id=table_id,
             write_disposition="WRITE_TRUNCATE",
-            schema=SCHEMA_CLIENTES,
         )
 
         logger.info(f"Pipeline finalizado correctamente {len(df_clientes)} registros cargados.")

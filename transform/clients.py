@@ -1,7 +1,9 @@
 import pandas as pd
 import ast
 from .utils import extract_many2one_name
+from utils.logger import get_logger
 
+logger = get_logger("transform_clientes")
 
 def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
     if not clients_raw:
@@ -37,25 +39,10 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
 
 
     # 2. Normalización Many2one
-    if "user_id" in df.columns:
-        df["id_vendedor"] = df["user_id"].apply(extraer_id)
-    else:
-        df["id_vendedor"] = pd.NA
-
-    if "property_payment_term_id" in df.columns:
-        df["id_plazo_pago"] = df["property_payment_term_id"].apply(extract_many2one_name)
-    else:
-        df["id_plazo_pago"] = ""
-
-    if "property_product_pricelist" in df.columns:
-        df["id_tarifa"] = df["property_product_pricelist"].apply(extract_many2one_name)
-    else:
-        df["id_tarifa"] = ""
-
-    if "city_id" in df.columns:
-        df["comuna"] = df["city_id"].apply(extract_many2one_name)
-    else:
-        df["comuna"] = ""
+    df["id_vendedor"] = df.get("user_id", pd.Series()).apply(extraer_id)
+    df["id_plazo_pago"] = df.get("property_payment_term_id", pd.Series()).apply(extract_many2one_name)
+    df["id_tarifa"] = df.get("property_product_pricelist", pd.Series()).apply(extract_many2one_name)
+    df["comuna"] = df.get("city_id", pd.Series()).apply(extract_many2one_name)
 
     # 3. Normalización Many2many (ETIQUETAS)
     def map_tags(val):
@@ -74,13 +61,10 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
 
         return ""
 
-    if "category_id" in df.columns:
-        df["etiquetas"] = df["category_id"].apply(map_tags)
-    else:
-        df["etiquetas"] = ""
+    df["etiquetas"] = df.get("category_id", pd.Series()).apply(map_tags)
 
     # 4. Renombrado columnas
-    rename_map = {
+    df = df.rename(columns={
         "id": "id_cliente",
         "company_type": "tipo_compania",
         "type": "tipo_direccion",
@@ -96,9 +80,8 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
         "credit_limit": "credito_limite",
         "partner_latitude": "geo_latitud",
         "partner_longitude": "geo_longitud",
-    }
+    })
 
-    df = df.rename(columns=rename_map)
 
     # 5. Conversión de tipos
     for col in ["id_cliente", "id_vendedor"]:
@@ -128,10 +111,10 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
                 df[col]
                 .fillna("")
                 .astype(str)
-                .replace(["None", "False", "nan"], "")
+                .replace(["None", "False", "nan", "<NA>"], "")
             )
 
-    # 7. Filtrado contactos individuales
+    # 7. Filtros de lógica de negocio (Personas vs Compañías)
     if "tipo_compania" in df.columns and "tipo_direccion" in df.columns:
         df = df[~(
             (df["tipo_compania"] == "person") &
