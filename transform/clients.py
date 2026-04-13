@@ -12,9 +12,7 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
     if tag_map is None:
         tag_map = {}
 
-    # ---------------------------------------------------
     # 1. Función para extraer ID de campos Many2one
-    # ---------------------------------------------------
     def extraer_id(x):
         if not x or x in [False, "None", "False", "[]", ""]:
             return None
@@ -37,9 +35,8 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
         except:
             return None
 
-    # ---------------------------------------------------
+
     # 2. Normalización Many2one
-    # ---------------------------------------------------
     if "user_id" in df.columns:
         df["id_vendedor"] = df["user_id"].apply(extraer_id)
     else:
@@ -60,9 +57,7 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
     else:
         df["comuna"] = ""
 
-    # ---------------------------------------------------
     # 3. Normalización Many2many (ETIQUETAS)
-    # ---------------------------------------------------
     def map_tags(val):
         if not val:
             return ""
@@ -84,9 +79,7 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
     else:
         df["etiquetas"] = ""
 
-    # ---------------------------------------------------
     # 4. Renombrado columnas
-    # ---------------------------------------------------
     rename_map = {
         "id": "id_cliente",
         "company_type": "tipo_compania",
@@ -107,9 +100,7 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
 
     df = df.rename(columns=rename_map)
 
-    # ---------------------------------------------------
     # 5. Conversión de tipos
-    # ---------------------------------------------------
     for col in ["id_cliente", "id_vendedor"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
@@ -123,9 +114,7 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
     if "fecha_creacion" in df.columns:
         df["fecha_creacion"] = pd.to_datetime(df["fecha_creacion"], errors="coerce")
 
-    # ---------------------------------------------------
     # 6. Normalización strings
-    # ---------------------------------------------------
     str_cols = [
         "nombre_cliente", "rut", "correo", "telefono",
         "ciudad", "calle", "tipo_compania", "id_tarifa",
@@ -142,18 +131,14 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
                 .replace(["None", "False", "nan"], "")
             )
 
-    # ---------------------------------------------------
     # 7. Filtrado contactos individuales
-    # ---------------------------------------------------
     if "tipo_compania" in df.columns and "tipo_direccion" in df.columns:
         df = df[~(
             (df["tipo_compania"] == "person") &
             (df["tipo_direccion"] == "contact")
         )]
 
-    # ---------------------------------------------------
     # 8. Deduplicación
-    # ---------------------------------------------------
     if "calle" in df.columns:
         df["calle_normalizada"] = (
             df["calle"]
@@ -169,16 +154,12 @@ def transform_clients(clients_raw, tag_map=None, valid_vendedor_ids=None):
 
         df = df.drop(columns=["calle_normalizada"])
 
-    # ---------------------------------------------------
     # 9. Filtrar vendedores válidos
-    # ---------------------------------------------------
     if valid_vendedor_ids:
         valid_set = set(pd.Series(valid_vendedor_ids).astype("Int64").dropna())
         df = df[df["id_vendedor"].isin(valid_set)]
 
-    # ---------------------------------------------------
     # 10. Selección final
-    # ---------------------------------------------------
     cols_finales = [
         "id_cliente", "tipo_compania", "tipo_direccion",
         "nombre_cliente", "rut", "dia_visita",
