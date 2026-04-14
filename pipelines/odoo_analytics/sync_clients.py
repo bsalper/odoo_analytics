@@ -6,7 +6,6 @@ from transform.clients import transform_clients
 from loaders.bigquery_loader import load_dataframe
 from utils.logger import get_logger
 
-# Configuración idéntica a tus otros scripts
 PROJECT_ID = "odoo-analytics-482120"
 DATASET_ANALYTICS = "odoo_analytics"
 TABLE_CLIENTES = "clientes"
@@ -16,7 +15,6 @@ logger = get_logger("sync_clients_analytics")
 # Helpers
 def get_valid_vendedor_ids(client_bq):
     logger.info("Leyendo vendedores permitidos desde BigQuery...")
-    # Usamos las variables locales que acabamos de definir
     query = f"""
         SELECT CAST(id_vendedor AS INTEGER) AS id
         FROM `{PROJECT_ID}.{DATASET_ANALYTICS}.vendedores`
@@ -37,7 +35,6 @@ def run():
             logger.warning("No se obtuvieron clientes desde Odoo.")
             return
 
-        # Transformación (tag_map vacío porque no hay extractor de etiquetas)
         df_clientes = transform_clients(
             clients_raw,
             tag_map={},

@@ -27,7 +27,7 @@ def transform_orders(orders_raw, valid_vendedor_ids=None, valid_client_ids=None)
             return ""
         return str(x)
 
-    # Creamos la columna 'excepcion' procesando el campo original de Odoo
+    # Se crea la columna "excepcion" procesando el campo original de Odoo
     if "main_exception_id" in df.columns:
         df["excepcion"] = df["main_exception_id"].apply(safe_exception)
     else:

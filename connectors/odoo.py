@@ -38,6 +38,5 @@ class OdooClient:
             }
         )
 
-# ESTA ES LA FUNCIÓN QUE BUSCA TU PIPELINE
 def get_odoo_client():
     return OdooClient()

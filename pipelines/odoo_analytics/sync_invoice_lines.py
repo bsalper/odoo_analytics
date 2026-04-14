@@ -34,7 +34,7 @@ def run():
     odoo_client = get_odoo_client()
     today = date.today()
     
-    # --- 1. CIERRE DE MES (Día 1) ---
+    # 1. CIERRE DE MES (Día 1)
     if today.day == 1:
         f_inicio = (today - relativedelta(months=1)).replace(day=1).strftime('%Y-%m-%d')
         f_fin = (today - relativedelta(days=1)).strftime('%Y-%m-%d')
@@ -49,7 +49,7 @@ def run():
                 load_dataframe(df_cerrado, TABLE_HIST, write_disposition="WRITE_APPEND")
                 logger.info(f"Movidas {len(df_cerrado)} líneas al histórico.")
 
-    # --- 2. MES ACTUAL (Diario) ---
+    # 2. MES ACTUAL (Diario)
     f_inicio_actual = today.replace(day=1).strftime('%Y-%m-%d')
     raw_actual = get_invoice_lines_raw(odoo_client, fecha_inicio=f_inicio_actual)
     df_actual = transform_invoice_lines(raw_actual)

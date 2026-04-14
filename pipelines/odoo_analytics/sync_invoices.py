@@ -32,7 +32,7 @@ def run():
     odoo_client = get_odoo_client()
     today = date.today()
     
-    # --- 1. LÓGICA DE DÍA 1 (PASAR MES CERRADO AL HISTÓRICO) ---
+    # 1. LÓGICA DE DÍA 1 (PASAR MES CERRADO AL HISTÓRICO)
     if today.day == 1:
         primer_dia_pasado = (today - relativedelta(months=1)).replace(day=1)
         ultimo_dia_pasado = today - relativedelta(days=1)
@@ -56,7 +56,7 @@ def run():
                 load_dataframe(df_final_cerrado, TABLE_HIST, write_disposition="WRITE_APPEND")
                 logger.info(f"Éxito: {len(df_final_cerrado)} registros movidos al histórico.")
 
-    # --- 2. LÓGICA DIARIA (ACTUALIZAR MES EN CURSO) ---
+    # 2. LÓGICA DIARIA (ACTUALIZAR MES EN CURSO)
     f_inicio_actual = today.replace(day=1).strftime('%Y-%m-%d')
     logger.info(f"Sincronizando mes actual desde: {f_inicio_actual}")
     
@@ -64,7 +64,7 @@ def run():
     df_actual = transform_invoices(raw_actual)
 
     if not df_actual.empty:
-        # Aquí siempre TRUNCATE porque solo borramos el mes actual 'sucio'
+        # Aquí siempre TRUNCATE porque solo borramos el mes actual "sucio"
         load_dataframe(df_actual, TABLE_ACTUAL, write_disposition="WRITE_TRUNCATE")
         logger.info(f"Éxito: {len(df_actual)} registros actualizados en tabla Mes Actual.")
 

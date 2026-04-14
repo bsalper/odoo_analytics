@@ -18,12 +18,8 @@ TABLE_PRODUCTO_IMPUESTO = "producto_impuesto"
 
 logger = get_logger("sync_products_analytics")
 
-# -------------------------
-# SCHEMAS AJUSTADOS (9 Columnas según tu Maestro)
-# -------------------------
-
 SCHEMA_PRODUCTOS = [
-    bigquery.SchemaField("id_producto_variante", "INTEGER"), # ID Maestro (Padre)
+    bigquery.SchemaField("id_producto_variante", "INTEGER"),
     bigquery.SchemaField("id_producto_padre", "INTEGER"),
     bigquery.SchemaField("referencia_interna", "STRING"),
     bigquery.SchemaField("nombre_producto", "STRING"),
