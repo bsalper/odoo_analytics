@@ -1,0 +1,23 @@
+name: Sync Vista Mobiliza a Google Sheets
+
+on:
+  workflow_dispatch:
+
+jobs:
+  actualizar-reporte:
+    runs-on: [self-hosted]
+
+    steps:
+    - name: Descargar Código del Repositorio
+      uses: actions/checkout@v3
+
+    - name: Instalar dependencias de Python
+      run: |
+        & "C:\Users\mobiliza_admin\Python311\python.exe" -m pip install --upgrade pip
+        & "C:\Users\mobiliza_admin\Python311\python.exe" -m pip install pandas numpy pyodbc requests google-api-python-client google-auth-oauthlib google-auth-httplib2
+
+    - name: Ejecutar Script de Subida
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+      run: |
+        & "C:\Users\mobiliza_admin\Python311\python.exe" cargar_a_sheets.py

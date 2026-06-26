@@ -1,0 +1,45 @@
+CLIENT_FIELDS = [
+    'id', 'commercial_company_name', 'company_type', 'type', 'vat', 'user_id',
+    'visit_day', 'street', 'city', 'email', 'phone',
+    'create_date', 'property_payment_term_id', 'credit_limit',
+    'property_product_pricelist', 'partner_latitude', 'city_id',
+    'partner_longitude', 'category_id', 'active', 'street2'
+]
+
+ORDER_FIELDS = [
+    'id', 'name', 'create_date', 'date_order', 'amount_untaxed',
+    'amount_tax', 'amount_total', 'amount_total',
+    'main_exception_id', 'note_new', 'state', 'invoice_status',
+    'partner_shipping_id', 'partner_id', 'user_id'
+]
+
+ORDER_LINE_FIELDS = [
+    'id', 'order_id', 'create_date', 'order_partner_id', 'discount',
+    'product_id', 'product_uom_qty', 'price_unit', 'price_subtotal'
+]
+
+PRODUCT_FIELDS = [
+    'id', 'default_code', 'name', 'uom_id',
+    'list_price', 'standard_price', 'create_date',
+    'taxes_id', 'categ_id', 'sale_ok', 'product_tmpl_id'
+]
+
+TAX_FIELDS = [
+    'id',
+    'name',
+    'amount'
+]
+
+INVOICE_FIELDS = [
+    "id", "name", "state", "l10n_latam_document_number", "invoice_date_due",
+    "l10n_latam_document_type_id", "invoice_date", "move_type",
+    "partner_id", "invoice_user_id", "amount_untaxed", "amount_tax",
+    "amount_total", "amount_residual", "invoice_origin", "invoice_payment_term_id",
+    "payment_state", "partner_shipping_id", "preferred_payment_method_line_id"
+]
+
+INVOICE_LINE_FIELDS = [
+    "id", "move_id", "product_id", "quantity", "discount", "partner_id",
+    "product_uom_id", "price_unit", "price_subtotal", "price_total",
+    "tax_ids", "account_id", "name", "date", "cost_price"
+]
