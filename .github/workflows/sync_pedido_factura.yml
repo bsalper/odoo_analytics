@@ -1,9 +1,6 @@
 name: Sync Odoo Analytics (Pedidos y Facturas)
 
 on:
-  # Se ejecuta automáticamente todos los días a las 05:00 AM Chile
-  schedule:
-    - cron: '0 8 * * *'
   workflow_dispatch: 
 
 jobs:
